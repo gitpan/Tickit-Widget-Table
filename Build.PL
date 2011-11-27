@@ -19,7 +19,7 @@ my %module_build_args = (
     "Tom Molesworth <tom\@entitymodel.com>"
   ],
   "dist_name" => "Tickit-Widget-Table",
-  "dist_version" => "0.001",
+  "dist_version" => "0.002",
   "license" => "perl",
   "module_name" => "Tickit::Widget::Table",
   "recommends" => {},

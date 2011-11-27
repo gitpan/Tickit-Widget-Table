@@ -15,7 +15,4 @@ lib/Tickit/Widget/Table/HeaderRow.pm
 lib/Tickit/Widget/Table/Row.pm
 t/00-pod.t
 t/00-use.t
-t/release-localbrew-dzil-clean-5.10.1.t
-t/release-localbrew-dzil-clean-5.12.4.t
-t/release-localbrew-dzil-clean-5.14.2.t
 t/table.t

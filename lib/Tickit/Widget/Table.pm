@@ -3,8 +3,9 @@ package Tickit::Widget::Table;
 use strict;
 use warnings;
 use parent qw(Tickit::Widget::VBox);
+use Scalar::Util qw(weaken);
 
-our $VERSION = '0.001';
+our $VERSION = '0.002';
 
 =head1 NAME
 
@@ -12,18 +13,27 @@ Tickit::Widget::Table - tabular widget support for L<Tickit>
 
 =head1 VERSION
 
-version 0.001
+version 0.002
 
 =head1 SYNOPSIS
 
+ use Tickit::Widget::HBox;
  use Tickit::Widget::Table;
  # Create the widget
  my $table = Tickit::Widget::Table->new(
  	padding => 1,
 	columns => [
+		{ label => 'First column', align => 'center', width => 'auto' },
+		{ label => 'Second column', align => 'right', width => 'auto' },
 	],
-	data	=> [
-	],
+ );
+ $table->add_row(
+ 	'First entry',
+	'Second column',
+ );
+ $table->add_row(
+ 	'Second entry',
+	'More data',
  );
  # Put it in something
  my $container = Tickit::Widget::HBox->new;
@@ -31,7 +41,8 @@ version 0.001
 
 =head1 DESCRIPTION
 
-
+Basic support for table widgets. See examples/ in the main distribution for usage
+instructions.
 
 =cut
 
@@ -64,7 +75,8 @@ row or column.
 =item * default_row_action - coderef to execute when a row
 is activated.
 
-=item * header - flag to select whether a header is shown. If not provided it is assumed that a header is wanted.
+=item * header - flag to select whether a header is shown. If not provided it is
+assumed that a header is wanted.
 
 =back
 
@@ -91,7 +103,7 @@ sub new {
 
 =head2 add_header_row
 
-Adds a header row to the top of the table.
+Adds a header row to the top of the table. Takes no parameters.
 
 =cut
 
@@ -112,6 +124,9 @@ sub add_header_row {
 
 =head2 add_initial_columns
 
+Populates initial columns from the given arrayref. Generally handled
+internally when passing C< columns > in the constructor.
+
 =cut
 
 sub add_initial_columns {
@@ -125,17 +140,23 @@ sub add_initial_columns {
 
 =head2 padding
 
+Returns amount of padding between cells
+
 =cut
 
 sub padding { shift->{padding} }
 
 =head2 lines
 
+Number of rows.
+
 =cut
 
 sub lines { scalar(shift->children) }
 
 =head2 cols
+
+Number of screen columns.
 
 =cut
 
@@ -162,11 +183,16 @@ sub rows {
 
 =head2 columns
 
+Number of columns in the table.
+
 =cut
 
 sub columns { scalar(shift->column_list) }
 
 =head2 data_rows
+
+Returns the rows containing data - this excludes the header row if there is
+one.
 
 =cut
 
@@ -180,6 +206,9 @@ sub data_rows {
 
 =head2 reposition_cursor
 
+Put the cursor in the right place. Possibly used internally, probably of
+dubious utility.
+
 =cut
 
 sub reposition_cursor {
@@ -190,6 +219,8 @@ sub reposition_cursor {
 
 =head2 header_row
 
+Returns the header row if there is one.
+
 =cut
 
 sub header_row {
@@ -199,6 +230,9 @@ sub header_row {
 }
 
 =head2 set_highlighted_row
+
+Highlight a row in the table. Only one row can be highlighted at a time,
+as opposed to selected rows.
 
 =cut
 
@@ -230,6 +264,8 @@ sub set_highlighted_row {
 
 =head2 highlight_row
 
+Returns the currently-highlighted row.
+
 =cut
 
 sub highlight_row {
@@ -239,6 +275,8 @@ sub highlight_row {
 
 =head2 highlight_row_index
 
+Index of the currently-highlighted row.
+
 =cut
 
 sub highlight_row_index {
@@ -246,7 +284,7 @@ sub highlight_row_index {
 	return $self->{highlight};
 }
 
-=pod
+=head2 refit
 
 Check current widths and apply width on columns we already have sufficient information for.
 
@@ -390,6 +428,8 @@ sub add_row {
 
 =head2 remove_row
 
+Remove the given row.
+
 =cut
 
 sub remove_row {
@@ -500,7 +540,7 @@ sub on_quit {
 
 =head2 on_switch_window
 
-uh, no.
+uh, no. you didn't see this.
 
 =cut
 
@@ -547,12 +587,6 @@ Should not be here.
 
 sub on_key_insert {
 	my $self = shift;
-	$self->add_row(
-		"Some file " . (rand(time)) . '.txt',
-		rand(time),
-		'file',
-		DateTime->from_epoch(epoch => rand(time))->strftime('%Y-%m-%d %H:%M:%S')
-	);
 }
 
 =head2 on_key_delete
@@ -563,7 +597,6 @@ Should not be here.
 
 sub on_key_delete {
 	my $self = shift;
-	$self->remove_row($self->highlight_row);
 }
 
 =head2 on_cursor_up
@@ -656,7 +689,6 @@ sub on_activate_row {
 	my $self = shift;
 	my $code = $self->highlight_row->action;
 	$code ||= $self->{default_row_action};
-#	die "No code\n" unless $code;
 	return 1 unless $code;
 
 	$code->($self, row => $self->highlight_row);

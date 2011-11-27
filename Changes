@@ -1,4 +1,7 @@
 Revision history for Tickit-Widget-Table
 
+0.002     2011-11-27 23:34:36 Europe/London
+	Fix a missing Scalar::Util::weaken import, and expand synopsis ever-so-slightly.
+
 0.001     2011-11-27 05:29:06 Europe/London
-Initial CPAN release
+	Initial CPAN release

@@ -1,6 +1,6 @@
 package Tickit::Widget::Table::HeaderCell;
 {
-  $Tickit::Widget::Table::HeaderCell::VERSION = '0.001';
+  $Tickit::Widget::Table::HeaderCell::VERSION = '0.002';
 }
 use strict;
 use warnings;
@@ -12,7 +12,7 @@ Tickit::Widget::Table::HeaderCell - header cell for a table
 
 =head1 VERSION
 
-version 0.001
+version 0.002
 
 =head1 SYNOPSIS
 

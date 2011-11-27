@@ -1,6 +1,6 @@
 package Tickit::Widget::Table::Column;
 {
-  $Tickit::Widget::Table::Column::VERSION = '0.001';
+  $Tickit::Widget::Table::Column::VERSION = '0.002';
 }
 use strict;
 use warnings;
@@ -20,7 +20,7 @@ use Scalar::Util qw(weaken);
 
 =head1 VERSION
 
-version 0.001
+version 0.002
 
 =head1 DESCRIPTION
 

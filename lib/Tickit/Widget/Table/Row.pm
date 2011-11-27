@@ -1,6 +1,6 @@
 package Tickit::Widget::Table::Row;
 {
-  $Tickit::Widget::Table::Row::VERSION = '0.001';
+  $Tickit::Widget::Table::Row::VERSION = '0.002';
 }
 use strict;
 use warnings;
@@ -14,7 +14,7 @@ use parent qw(Tickit::Widget::HBox);
 
 =head1 VERSION
 
-version 0.001
+version 0.002
 
 =head1 DESCRIPTION
 

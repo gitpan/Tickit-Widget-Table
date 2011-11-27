@@ -1,6 +1,6 @@
 package Tickit::Widget::Table::Cell;
 {
-  $Tickit::Widget::Table::Cell::VERSION = '0.001';
+  $Tickit::Widget::Table::Cell::VERSION = '0.002';
 }
 use strict;
 use warnings;
@@ -13,7 +13,7 @@ Tickit::Widget::Table::Cell - cells in a L<Tickit::Widget::Table>.
 
 =head1 VERSION
 
-version 0.001
+version 0.002
 
 =head1 SYNOPSIS
 
