@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 
-
+use 5.010;
 
 use ExtUtils::MakeMaker 6.30;
 
@@ -10,14 +10,12 @@ use ExtUtils::MakeMaker 6.30;
 
 my %WriteMakefileArgs = (
   "ABSTRACT" => "Table widget",
-  "AUTHOR" => "Tom Molesworth <tom\@entitymodel.com>",
+  "AUTHOR" => "Tom Molesworth <cpan\@entitymodel.com>",
   "BUILD_REQUIRES" => {
-    "Module::Build" => "0.3601",
-    "Test::More" => "0.88"
+    "Test::More" => "0.98"
   },
   "CONFIGURE_REQUIRES" => {
-    "ExtUtils::MakeMaker" => "6.30",
-    "Module::Build" => "0.3601"
+    "ExtUtils::MakeMaker" => "6.30"
   },
   "DISTNAME" => "Tickit-Widget-Table",
   "EXE_FILES" => [],
@@ -28,7 +26,7 @@ my %WriteMakefileArgs = (
     "Tickit" => "0.12",
     "parent" => 0
   },
-  "VERSION" => "0.002",
+  "VERSION" => "0.003",
   "test" => {
     "TESTS" => "t/*.t"
   }

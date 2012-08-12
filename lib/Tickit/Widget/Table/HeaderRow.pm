@@ -1,6 +1,6 @@
 package Tickit::Widget::Table::HeaderRow;
 {
-  $Tickit::Widget::Table::HeaderRow::VERSION = '0.002';
+  $Tickit::Widget::Table::HeaderRow::VERSION = '0.003';
 }
 use strict;
 use warnings;
@@ -14,7 +14,7 @@ Tickit::Widget::Table::HeaderRow - header row, like a normal row but has a cell
 
 =head1 VERSION
 
-version 0.002
+version 0.003
 
 =head1 SYNOPSIS
 

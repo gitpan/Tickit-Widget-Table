@@ -1,22 +1,23 @@
 package Tickit::Widget::Table::Row;
 {
-  $Tickit::Widget::Table::Row::VERSION = '0.002';
+  $Tickit::Widget::Table::Row::VERSION = '0.003';
 }
 use strict;
 use warnings;
-use parent qw(Tickit::Widget::HBox);
+use parent qw(Tickit::Widget::HBox Tickit::Widget::Table::Highlight);
 
 =head1 NAME
 
-
-
-=head1 SYNOPSIS
+Tickit::Widget::Table::Row - implementation of a table row
 
 =head1 VERSION
 
-version 0.002
+version 0.003
 
 =head1 DESCRIPTION
+
+Implements a row. Nothing particularly exciting here, see method
+documentation and L<Tickit::Widget::Table/DESCRIPTION>.
 
 =cut
 
@@ -32,6 +33,18 @@ sub cols { 1 }
 
 =head2 new
 
+Takes the following named parameters:
+
+=over 4
+
+=item * table - L<Tickit::Widget::Table>
+
+=item * column - column definitions
+
+=item * data - data to populate the row with
+
+=back
+
 =cut
 
 sub new {
@@ -40,8 +53,10 @@ sub new {
 	my $table = delete $args{table};
 	my $column = delete $args{column};
 	my $data = delete $args{data} || [];
+	my $can_highlight = delete $args{can_highlight} // 1;
 	my $self = $class->SUPER::new(%args);
 	$self->{table} = $table;
+	$self->{can_highlight} = $can_highlight;
 
 	my $cell_class = $self->cell_type;
 	foreach my $col (@$column) {
@@ -53,18 +68,31 @@ sub new {
 		);
 		$self->add($cell);
 	}
+	$self->update_style;
 	return $self;
 }
 
+=head2 remove
+
+Remove this row and all the cells within it.
+
+Returns $self.
+
+=cut
+
 sub remove {
 	my $self = shift;
-	my $idx = 0;
 	$self->SUPER::remove($_) for $self->children;
+	$self
 }
 
+=head2 table
+
+Accessor for the containing L<Tickit::Widget::Table>.
+
+=cut
+
 sub table { shift->{table} }
-sub is_highlighted { shift->{highlighted} ? 1 : 0 }
-sub is_selected { shift->{selected} ? 1 : 0 }
 
 =head2 selected
 
@@ -85,29 +113,13 @@ sub selected {
 	return $self->{selected};
 }
 
-sub highlighted {
-	my $self = shift;
-	if(@_) {
-		my $v = shift;
-		if($v ~~ $self->{highlighted}) {
-			$self->{highlighted} = $v;
-		} else {
-			$self->{highlighted} = $v;
-#			$self->resized;
-			$self->pen->chattr( bg => $self->is_highlighted ? 4 : 0 );
-#			$_->update_pen for $self->children;
-		}
-		return $self;
-	}
-	return $self->{highlighted};
-}
-
 =head2 cell_type
 
 Default expected cell type for entries in this row.
 
 Typically either L<Tickit::Widget::Table::Cell> or
-L<Tickit::Widget::Table::HeaderCell>.
+L<Tickit::Widget::Table::HeaderCell>. Overridden in the
+L<Tickit::Widget::Table::HeaderRow> subclass.
 
 =cut
 
@@ -115,7 +127,9 @@ sub cell_type { 'Tickit::Widget::Table::Cell' }
 
 =head2 add_column
 
-Add a new column to the end of the row.
+Add a new column to the end of the row. You'd think that
+maybe there would be a way to add a column in a different
+position but no, raise an RT if this is a problem.
 
 =cut
 
@@ -156,23 +170,19 @@ sub reposition_cursor {
 	$win->focus(0, 0);
 }
 
-sub action {
-	my $self = shift;
-	if(@_) {
-		$self->{action} = shift;
-		return $self;
-	}
-	return $self->{action};
-}
+=head2 update_style
 
-sub xrender {
+Update the pen attributes based on the current highlight status.
+
+Returns $self.
+
+=cut
+
+sub update_style {
 	my $self = shift;
-	$self->SUPER::render(@_);
-	my $win = $self->window or return;
-	foreach my $line ($win->lines - 1) {
-		$win->goto($line, 0);
-		$win->print(' ' x $win->cols, bg => $self->is_highlighted ? 4 : 0);
-	}
+	# TODO use predefined pens or maybe allow undef for defaults, this is clearly a hack
+	$self->pen->chattrs($self->table->${\(($self->is_highlighted ? 'highlight' : 'normal') . '_attrs')});
+	$self
 }
 
 1;
@@ -185,4 +195,4 @@ Tom Molesworth <cpan@entitymodel.com>
 
 =head1 LICENSE
 
-Copyright Tom Molesworth 2011. Licensed under the same terms as Perl itself.
+Copyright Tom Molesworth 2011-2012. Licensed under the same terms as Perl itself.

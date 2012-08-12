@@ -1,11 +1,12 @@
 package Tickit::Widget::Table::Cell;
 {
-  $Tickit::Widget::Table::Cell::VERSION = '0.002';
+  $Tickit::Widget::Table::Cell::VERSION = '0.003';
 }
 use strict;
 use warnings;
 use 5.010;
-use parent qw(Tickit::Widget::Static);
+use parent qw(Tickit::Widget::Static Tickit::Widget::Table::Highlight);
+use Tickit::Utils qw(textwidth);
 
 =head1 NAME
 
@@ -13,11 +14,7 @@ Tickit::Widget::Table::Cell - cells in a L<Tickit::Widget::Table>.
 
 =head1 VERSION
 
-version 0.002
-
-=head1 SYNOPSIS
-
-see L<Tickit::Widget::Table>.
+version 0.003
 
 =head1 DESCRIPTION
 
@@ -39,8 +36,10 @@ Delegates to the L<Tickit::Widget::Column> which should have a better idea of th
 
 sub cols {
 	my $self = shift;
-	return 1 unless $self->column;
-	return $self->column->cols;
+	if(defined(my $displayed = $self->column->displayed_width)) {
+		return $displayed;
+	}
+	return $self->{widget} ? $self->{widget}->cols : $self->SUPER::cols;
 }
 
 =head2 display_xpos
@@ -56,10 +55,10 @@ sub display_xpos {
 	my $x = 0;
 
 	my $padding = $self->column->idx ? $self->table->padding : 0;
-	given($self->column->align) {
+	for($self->column->align) {
 	when('left') { $x = $padding; }
-	when('right') { $x = ($win->cols - 1) - (length($txt)); }
-	when('center') { $x = $padding + (($win->cols - 1) - (length($txt))) / 2; }
+	when('right') { $x = ($win->cols - 1) - (textwidth $txt); }
+	when('center') { $x = $padding + (($win->cols - 1) - (textwidth $txt)) / 2; }
 	when(undef) { die "Undef value found for alignment"; }
 	default { die "what kind of alignment do you think $_ is?"; }
 	}
@@ -134,9 +133,62 @@ sub display_value {
 	return $v;
 }
 
+=head2 display_width
+
+Returns the number of columns our current value will require.
+
+=cut
+
+sub display_width {
+	my $self = shift;
+	textwidth $self->display_value;
+}
+
+=head2 column
+
+Accessor for the L<Tickit::Widget::Table::Column> this cell resides in.
+
+=cut
+
 sub column { shift->{column} }
+
+=head2 row
+
+Accessor for the L<Tickit::Widget::Table::Row> this cell resides in.
+
+=cut
+
 sub row { shift->{row} }
+
+=head2 table
+
+Accessor for the L<Tickit::Widget::Table> this cell resides in.
+
+=cut
+
 sub table { shift->{table} }
+
+=head2 new
+
+Instantiate a new cell.
+
+Takes the following named parameters:
+
+=over 4
+
+=item * table - the L<Tickit::Widget::Table> which will hold this cell
+
+=item * row - the L<Tickit::Widget::Row> which will hold this cell
+
+=item * column - the L<Tickit::Widget::Column> which will hold this cell
+
+=item * content (optional) - content, either a string or a L<Tickit::Widget> subclass
+
+=back
+
+Returns the new cell.
+
+=cut
 
 sub new {
 	my $class = shift;
@@ -159,12 +211,29 @@ sub new {
 	return $self;
 }
 
+=head2 set_table
+
+Change the L<Tickit::Widget::Table> for this cell.
+
+Returns $self.
+
+=cut
+
 sub set_table {
 	my $self = shift;
 	$self->{table} = shift;
 	weaken $self->{table};
 	return $self;
 }
+
+=head2 set_column
+
+Change the L<Tickit::Widget::Table::Column> for this cell.
+
+Returns $self.
+
+=cut
+
 sub set_column {
 	my $self = shift;
 	$self->{column} = shift;
@@ -172,11 +241,35 @@ sub set_column {
 	return $self;
 }
 
+=head2 set_row
+
+Change the L<Tickit::Widget::Table::Row> for this cell.
+
+Returns $self.
+
+=cut
+
 sub set_row {
 	my $self = shift;
 	$self->{row} = shift;
 	weaken $self->{row} if ref $self->{row};
 	return $self;
+}
+
+=head2 action
+
+Accessor/mutator for the action that should be performed when this
+cell is activated. This would be by way of being a coderef.
+
+=cut
+
+sub action {
+	my $self = shift;
+	if(@_) {
+		$self->{action} = shift;
+		return $self;
+	}
+	return $self->{action};
 }
 
 1;

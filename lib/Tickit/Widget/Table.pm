@@ -4,8 +4,9 @@ use strict;
 use warnings;
 use parent qw(Tickit::Widget::VBox);
 use Scalar::Util qw(weaken);
+use List::Util qw(max sum);
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 =head1 NAME
 
@@ -13,7 +14,7 @@ Tickit::Widget::Table - tabular widget support for L<Tickit>
 
 =head1 VERSION
 
-version 0.002
+version 0.003
 
 =head1 SYNOPSIS
 
@@ -68,15 +69,14 @@ Takes the following named parameters:
 
 =item * padding - amount of padding (in chars) to apply between columns
 
-=item * default_cell_action - coderef to execute when a cell
-is activated unless there is an action defined on the cell,
-row or column.
-
-=item * default_row_action - coderef to execute when a row
-is activated.
+=item * default_action - coderef to execute when a cell/row/column
+is activated, unless there is an action defined on that item already
 
 =item * header - flag to select whether a header is shown. If not provided it is
 assumed that a header is wanted.
+
+=item * highlight_mode - one of row (default), column, cell, defines how navigation
+and selection work
 
 =back
 
@@ -86,15 +86,15 @@ sub new {
 	my $class = shift;
 	my %args = @_;
 	my $columns = delete $args{columns};
-	my $padding = delete $args{padding};
+	my $padding = delete $args{padding} // 0;
 	my $header = exists $args{header} ? delete $args{header} : 1;
-	my $cell_action = delete $args{default_cell_action};
-	my $row_action = delete $args{default_cell_action};
+	my $default_action = delete $args{default_action};
+	my $highlight_mode = delete $args{highlight_mode} // 'row';
 	my $self = $class->SUPER::new(%args);
+	$self->{highlight_mode} = $highlight_mode;
 	$self->{columns} = [];
-	$self->{padding} = $padding // 0;
-	$self->{default_cell_action} = $cell_action;
-	$self->{default_row_action} = $row_action;
+	$self->{padding} = $padding;
+	$self->{default_action} = $default_action;
 
 	$self->add_initial_columns($columns);
 	$self->add_header_row($header) if $header;
@@ -162,8 +162,7 @@ Number of screen columns.
 
 sub cols {
 	my $self = shift;
-	my $w = 0;
-	$w += $_->cols for $self->column_list;
+	my $w = sum map $_->cols, $self->column_list;
 	return $w || 1;
 }
 
@@ -213,8 +212,11 @@ dubious utility.
 
 sub reposition_cursor {
 	my $self = shift;
-	my $row = $self->highlight_row or return;
-	$row->reposition_cursor;
+	$self->{on_highlight_changed}->($self) if $self->{on_highlight_changed};
+	$self
+#	my $row = $self->highlight_row or return;
+#	my $col = $self->highlight_col or return;
+#	$row->reposition_cursor;
 }
 
 =head2 header_row
@@ -226,7 +228,7 @@ Returns the header row if there is one.
 sub header_row {
 	my $self = shift;
 	return unless $self->{header_row};
-	return ($self->children)[0];
+	return +($self->children)[0];
 }
 
 =head2 set_highlighted_row
@@ -239,20 +241,20 @@ as opposed to selected rows.
 sub set_highlighted_row {
 	my $self = shift;
 	my $id = shift;
-	my $idx = 0;
 
-	delete $self->{highlight};
 	delete $self->{highlight_row};
+	delete $self->{highlight_row_index};
 
+	my $idx = 0;
 	foreach my $row ($self->data_rows) {
 		if($id == $idx) {
-			my $redraw = !$row->{highlighted};
+			my $redraw = !$row->is_highlighted;
 			$row->highlighted(1);
-			$self->{highlight} = $id;
+			$self->{highlight_row_index} = $id;
 			$self->{highlight_row} = $row;
 			$row->redraw if $redraw;
 		} else {
-			my $redraw = $row->{highlighted};
+			my $redraw = $row->is_highlighted;
 			$row->highlighted(0);
 			$row->redraw if $redraw;
 		}
@@ -262,9 +264,43 @@ sub set_highlighted_row {
 	return $self;
 }
 
+=head2 set_highlighted_column
+
+Highlight a row in the table. Only one row can be highlighted at a time,
+as opposed to selected rows.
+
+=cut
+
+sub set_highlighted_column {
+	my $self = shift;
+	my $id = shift;
+
+	delete $self->{highlight_column};
+	delete $self->{highlight_column_index};
+
+	my $idx = 0;
+	foreach my $col ($self->column_list) {
+		if($id == $idx) {
+			my $redraw = !$col->is_highlighted;
+			$col->highlighted(1);
+			$self->{highlight_column_index} = $id;
+			$self->{highlight_column} = $col;
+			$col->redraw if $redraw;
+		} else {
+			my $redraw = $col->is_highlighted;
+			$col->highlighted(0);
+			$col->redraw if $redraw;
+		}
+		++$idx;
+	}
+	$self->reposition_cursor;
+	return $self;
+}
+
 =head2 highlight_row
 
-Returns the currently-highlighted row.
+Returns currently-highlighted row, if we have one.
+In cell mode, returns the row corresponding to current cell highlight.
 
 =cut
 
@@ -273,16 +309,52 @@ sub highlight_row {
 	return $self->{highlight_row};
 }
 
+=head2 highlight_column
+
+Returns currently-highlighted column, if we have one.
+In cell mode, returns the column corresponding to current cell highlight.
+
+=cut
+
+sub highlight_column {
+	my $self = shift;
+	return $self->{highlight_column};
+}
+
+=head2 highlight_cell
+
+=cut
+
+sub highlight_cell {
+	my $self = shift;
+	return $self->{highlight_cell};
+}
+
+=head2 highlighted_item
+
+=cut
+
+sub highlighted_item {
+	my $self = shift;
+	my $type = $self->highlight_mode;
+	$self->{'highlight_' . $type}
+}
+
 =head2 highlight_row_index
 
 Index of the currently-highlighted row.
 
 =cut
 
-sub highlight_row_index {
-	my $self = shift;
-	return $self->{highlight};
-}
+sub highlight_row_index { shift->{highlight_row_index} }
+
+=head2 highlight_column_index
+
+Index of the currently-highlighted column.
+
+=cut
+
+sub highlight_column_index { shift->{highlight_column_index} }
 
 =head2 refit
 
@@ -310,15 +382,19 @@ sub refit {
 		$col->set_displayed_width($w);
 		$htotal += $w;
 	}
-	return unless @auto;
+	unless(@auto) {
+		$self->resized;
+		return $self;
+	}
 
 	my $remaining = $self->window->cols - $htotal;
 	my $per_column = $remaining / @auto;
 	foreach my $col (@auto) {
-		my $w = floor(min($remaining, $per_column));
+		my $w = floor min $remaining, $per_column;
 		$col->set_displayed_width($w);
 		$remaining -= $w;
 	}
+	$self->resized;
 	return $self;
 }
 
@@ -334,7 +410,7 @@ sub min_refit {
 	my $self = shift;
 	return unless $self->window;
 
-	$_->set_displayed_width(1) for grep { defined $self->get_column_width($_) } $self->column_list;
+	$_->set_displayed_width(1) for grep defined $self->get_column_width($_), $self->column_list;
 	return $self;
 }
 
@@ -349,6 +425,8 @@ sub get_column_width {
 	my ($self, $col) = @_;
 	if($col->width_type eq 'fixed') {
 		return $col->width;	
+	} elsif($col->width_type eq 'min') {
+		return 1 + max map $_->display_width, $col->cells;
 	} elsif($col->width_type eq 'ratio') {
 		return $self->window->cols * $col->width_ratio;
 	}
@@ -395,7 +473,24 @@ sub add_column {
 
 # Now we should have enough information to refit if we're going to
 	$self->refit unless $args{refit_later};
+	$self->update_highlight unless $self->highlighted_item;
 	return $col;
+}
+
+=head2 update_highlight
+
+=cut
+
+sub update_highlight {
+	my $self = shift;
+	if($self->highlight_mode eq 'row') {
+		$self->set_highlighted_row(0) unless $self->highlight_row;
+	} elsif($self->highlight_mode eq 'column') {
+		$self->set_highlighted_column(0) unless $self->highlight_column;
+	} else {
+		$self->set_highlighted_cell(0, 0) unless $self->highlight_cell;
+	}
+	$self
 }
 
 =head2 add_row
@@ -407,12 +502,14 @@ a new L<Tickit::Widget::Table::Row> and return it.
 
 sub add_row {
 	my $self = shift;
+	my %args = @_;
 
 # Instantiate the row using parameters as the cell values
 	my $row = Tickit::Widget::Table::Row->new(
 		table	=> $self,
 		column	=> [ $self->column_list ],
-		data	=> [ @_ ],
+		can_highlight => $args{can_highlight},
+		data	=> $args{data} || [],
 	);
 	$self->add($row);
 
@@ -421,7 +518,7 @@ sub add_row {
 
 # If nothing has been highlighted yet then highlight the
 # first row - might be us
-	$self->set_highlighted_row(0) unless $self->highlight_row;
+	$self->update_highlight unless $self->highlighted_item;
 	$self->resized;
 	return $row;
 }
@@ -440,7 +537,6 @@ sub remove_row {
 # the highlighted row
 	my @c = $self->data_rows;
 	my ($idx) = grep { $c[$_] eq $row } 0..$#c;
-	warn "Remove row $row idx $idx of " . $self->rows . "\n";
 
 # If this is the highlighted row then adjust highlight to the
 # row above instead.
@@ -492,6 +588,26 @@ sub window_lost {
 	$_->set_window(undef) for $self->children;
 }
 
+{ # put ->on_key in a little scope of its own
+my %key_map = (
+	'C-q' => 'on_quit',
+	'Up' => 'on_cursor_up',
+	'PageUp' => 'on_cursor_pageup',
+	'Down' => 'on_cursor_down',
+	'PageDown' => 'on_cursor_pagedown',
+	'Home' => 'on_cursor_home',
+	'End' => 'on_cursor_end',
+	'Left' => 'on_cursor_left',
+	'Right' => 'on_cursor_right',
+	'Insert' => 'on_key_insert',
+	'Delete' => 'on_key_delete',
+	'M-a' => 'on_toggle_select_all',
+	'Tab' => 'on_switch_window',
+);
+my %text_map = (
+	' ' => 'on_select',
+);
+
 =head2 on_key
 
 Key handling: convert some common key requests to events.
@@ -500,28 +616,26 @@ Key handling: convert some common key requests to events.
 
 sub on_key {
 	my $self = shift;
-	my ($type, $str, $key) = @_;
-	return if $self->{on_key} && !$self->{on_key}->(@_);
+	my ($type, $str) = @_; # $key isn't used here. yet.
+	return 1 if $self->{on_key} && !$self->{on_key}->(@_);
 
 	if($type eq 'key') {
-		$self->on_quit if $str eq 'C-q';
-		$self->on_cursor_up if $str eq 'Up';
-		$self->on_cursor_pageup if $str eq 'PageUp';
-		$self->on_cursor_down if $str eq 'Down';
-		$self->on_cursor_pagedown if $str eq 'PageDown';
-		$self->on_cursor_home if $str eq 'Home';
-		$self->on_cursor_end if $str eq 'End';
-		$self->on_key_insert if $str eq 'Insert';
-		$self->on_key_delete if $str eq 'Delete';
-		$self->on_toggle_select_all if $str eq 'M-a';
-		$self->on_switch_window if $str eq 'Tab';
+		if(defined(my $method = $key_map{$str})) {
+			$self->$method;
+			return 1;
+		}
 		if($str eq 'Enter') {
-			$self->on_activate_cell; # if $self->{default_cell_action};
-			$self->on_activate_row; # if $self->{default_row_action};
+			$self->highlighted_item->activate;
+			return 1;
 		}
 	} elsif($type eq 'text') {
-		$self->on_select if $str eq ' ';
+		if(defined(my $method = $text_map{$str})) {
+			$self->$method;
+			return 1;
+		}
 	}
+	return 0;
+}
 }
 
 =head2 on_quit
@@ -607,9 +721,17 @@ Move to the row above.
 
 sub on_cursor_up {
 	my $self = shift;
-	my $idx = $self->highlight_row_index;
-	$idx = $self->rows - 1 if --$idx < 0;
-	$self->set_highlighted_row($idx);
+	# No vertical navigation in column mode
+	return $self if $self->highlight_mode eq 'column';
+
+	my %seen;
+	ROW:
+	do {
+		my $idx = $self->highlight_row_index;
+		$idx = $self->rows - 1 if --$idx < 0;
+		$self->set_highlighted_row($idx);
+		last ROW if $seen{$idx}++;
+	} until $self->highlight_row->can_highlight;
 }
 
 =head2 on_cursor_home
@@ -620,6 +742,9 @@ Move to the top of the table.
 
 sub on_cursor_home {
 	my $self = shift;
+	# No vertical navigation in column mode
+	return $self if $self->highlight_mode eq 'column';
+
 	$self->set_highlighted_row(0);
 }
 
@@ -631,6 +756,9 @@ Move to the end of the table.
 
 sub on_cursor_end {
 	my $self = shift;
+	# No vertical navigation in column mode
+	return $self if $self->highlight_mode eq 'column';
+
 	$self->set_highlighted_row($self->rows - 1);
 }
 
@@ -656,9 +784,17 @@ Move one line down.
 
 sub on_cursor_down {
 	my $self = shift;
-	my $idx = $self->highlight_row_index;
-	$idx = 0 if ++$idx >= $self->rows;
-	$self->set_highlighted_row($idx);
+	# No vertical navigation in column mode
+	return $self if $self->highlight_mode eq 'column';
+
+	my %seen;
+	ROW:
+	do {
+		my $idx = $self->highlight_row_index;
+		$idx = 0 if ++$idx >= $self->rows;
+		$self->set_highlighted_row($idx);
+		last ROW if $seen{$idx}++;
+	} until $self->highlight_row->can_highlight;
 }
 
 =head2 on_cursor_pagedown
@@ -669,30 +805,144 @@ Move several lines down.
 
 sub on_cursor_pagedown {
 	my $self = shift;
+	# No vertical navigation in column mode
+	return $self if $self->highlight_mode eq 'column';
+
 	my $idx = $self->highlight_row_index;
 	$idx += 10;
 	$idx -= $self->rows - 1 if $idx >= $self->rows;
 	$self->set_highlighted_row($idx);
 }
 
-sub on_activate_cell {
+=head2 on_cursor_left
+
+Move to the item on the left.
+
+=cut
+
+sub on_cursor_left {
 	my $self = shift;
-	if(my $code = $self->{default_cell_action}) {
-		$code->($self);
-	} else {
-		warn "No default action for $self\n";
-	}
-	return 1;
+	return $self if $self->highlight_mode eq 'row';
+
+	my %seen;
+	COL:
+	do {
+		my $idx = $self->highlight_column_index;
+		$idx = $self->columns - 1 if --$idx < 0;
+		$self->set_highlighted_column($idx);
+		last COL if $seen{$idx}++;
+	} until $self->highlight_column->can_highlight;
 }
 
-sub on_activate_row {
-	my $self = shift;
-	my $code = $self->highlight_row->action;
-	$code ||= $self->{default_row_action};
-	return 1 unless $code;
+=head2 on_cursor_right
 
-	$code->($self, row => $self->highlight_row);
-	return 1;
+Move to the item on the right.
+
+=cut
+
+sub on_cursor_right {
+	my $self = shift;
+	return $self if $self->highlight_mode eq 'row';
+
+	my %seen;
+	COL:
+	do {
+		my $idx = $self->highlight_column_index;
+		$idx = ++$idx % $self->columns;
+		$self->set_highlighted_column($idx);
+		last COL if $seen{$idx}++;
+	} until $self->highlight_column->can_highlight;
+}
+
+=head2 highlight_mode
+
+=cut
+
+sub highlight_mode {
+	my $self = shift;
+	if(@_) {
+		$self->{highlight_mode} = shift;
+		return $self;
+	}
+	$self->{highlight_mode}
+}
+
+=head2 default_action
+
+=cut
+
+sub default_action {
+	my $self = shift;
+	if(@_) {
+		$self->{default_action} = shift;
+		return $self;
+	}
+	$self->{default_action}
+}
+
+=head2 bind_key
+
+Accessor/mutator for the C<on_key> callback.
+
+Returns $self when used as a mutator, or the current C<on_key> value when
+called with no parameters.
+
+=cut
+
+sub bind_key {
+	my $self = shift;
+	if(@_) {
+		$self->{on_key} = shift;
+		return $self;
+	}
+	$self->{on_key}
+}
+
+=head2 on_highlight_changed
+
+Accessor/mutator for the C<on_highlight_changed> callback.
+
+Returns $self when used as a mutator, or the current C<on_highlight_changed> value when
+called with no parameters.
+
+=cut
+
+sub on_highlight_changed {
+	my $self = shift;
+	if(@_) {
+		$self->{on_highlight_changed} = shift;
+		return $self;
+	}
+	$self->{on_highlight_changed}
+}
+
+=head2 highlight_attrs
+
+Accessor for pen attributes to use for highlighted cells, as a hashref.
+
+=cut
+
+sub highlight_attrs { +{ fg => 6, b => 1, bg => 4 } }
+
+=head2 normal_attrs
+
+Accessor for pen attributes to use for unhighlighted cells, as a hashref.
+
+=cut
+
+sub normal_attrs { +{ fg => 7, bg => 4, b => 0 } }
+
+=head2 reshape
+
+Called when the window has been resized. Recalculates layout.
+
+=cut
+
+sub reshape {
+	my $self = shift;
+	warn "Reshape";
+	$self->refit;
+	$self->SUPER::reshape;
 }
 
 1;
