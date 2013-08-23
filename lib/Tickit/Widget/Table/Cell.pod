@@ -1,0 +1,132 @@
+=for comment POD_DERIVED_INDEX_GENERATED
+The following documentation is automatically generated.  Please do not edit
+this file, but rather the original, inline with Tickit::Widget::Table::Cell
+at lib/Tickit/Widget/Table/Cell.pm
+(on the system that originally ran this).
+If you do edit this file, and don't want your changes to be removed, make
+sure you change the first line.
+
+=cut
+
+=head1 NAME
+
+Tickit::Widget::Table::Cell - cells in a L<Tickit::Widget::Table>.
+
+=head1 VERSION
+
+version 0.100
+
+=head1 DESCRIPTION
+
+Not intended for direct use - see L<Tickit::Widget::Table>.
+
+=head1 METHODS
+
+=head2 cols
+
+Delegates to the L<Tickit::Widget::Column> which should have a better idea of the total columns for this cell.
+
+=head2 display_xpos
+
+Left position to start writing text at.
+
+=head2 window_gained
+
+Pass our window on to the child widget if we have one.
+
+=head2 window_lost
+
+Remove the child widget window.
+
+=head2 render_to_rb
+
+Either render through the parent class or delegate to our widget.
+
+=head2 display_value
+
+Value to use when displaying this cell. Probably the text content.
+
+=head2 display_width
+
+Returns the number of columns our current value will require.
+
+=head2 column
+
+Accessor for the L<Tickit::Widget::Table::Column> this cell resides in.
+
+=head2 row
+
+Accessor for the L<Tickit::Widget::Table::Row> this cell resides in.
+
+=head2 table
+
+Accessor for the L<Tickit::Widget::Table> this cell resides in.
+
+=head2 new
+
+Instantiate a new cell.
+
+Takes the following named parameters:
+
+=over 4
+
+=item * table - the L<Tickit::Widget::Table> which will hold this cell
+
+=item * row - the L<Tickit::Widget::Row> which will hold this cell
+
+=item * column - the L<Tickit::Widget::Column> which will hold this cell
+
+=item * content (optional) - content, either a string or a L<Tickit::Widget> subclass
+
+=back
+
+Returns the new cell.
+
+=head2 set_table
+
+Change the L<Tickit::Widget::Table> for this cell.
+
+Returns $self.
+
+=head2 set_column
+
+Change the L<Tickit::Widget::Table::Column> for this cell.
+
+Returns $self.
+
+=head2 set_row
+
+Change the L<Tickit::Widget::Table::Row> for this cell.
+
+Returns $self.
+
+=head2 action
+
+Accessor/mutator for the action that should be performed when this
+cell is activated. This would be by way of being a coderef.
+
+=head1 INHERITED METHODS
+
+=over 4
+
+=item L<Tickit::Widget::Static>
+
+L<lines|Tickit::Widget::Static/lines>, L<on_mouse|Tickit::Widget::Static/on_mouse>, L<set_on_click|Tickit::Widget::Static/set_on_click>, L<set_text|Tickit::Widget::Static/set_text>, L<text|Tickit::Widget::Static/text>
+
+=item L<Tickit::Widget>
+
+L<get_style_pen|Tickit::Widget/get_style_pen>, L<get_style_text|Tickit::Widget/get_style_text>, L<get_style_values|Tickit::Widget/get_style_values>, L<key_focus_next_after|Tickit::Widget/key_focus_next_after>, L<key_focus_next_before|Tickit::Widget/key_focus_next_before>, L<on_pen_changed|Tickit::Widget/on_pen_changed>, L<parent|Tickit::Widget/parent>, L<pen|Tickit::Widget/pen>, L<redraw|Tickit::Widget/redraw>, L<reshape|Tickit::Widget/reshape>, L<resized|Tickit::Widget/resized>, L<set_parent|Tickit::Widget/set_parent>, L<set_pen|Tickit::Widget/set_pen>, L<set_style|Tickit::Widget/set_style>, L<set_style_tag|Tickit::Widget/set_style_tag>, L<set_window|Tickit::Widget/set_window>, L<style_classes|Tickit::Widget/style_classes>, L<take_focus|Tickit::Widget/take_focus>, L<window|Tickit::Widget/window>
+
+=item L<Tickit::Widget::Table::Highlight>
+
+L<activate|Tickit::Widget::Table::Highlight/activate>, L<can_highlight|Tickit::Widget::Table::Highlight/can_highlight>, L<highlighted|Tickit::Widget::Table::Highlight/highlighted>, L<is_highlighted|Tickit::Widget::Table::Highlight/is_highlighted>, L<is_selected|Tickit::Widget::Table::Highlight/is_selected>
+
+=back
+
+=head1 AUTHOR
+
+Tom Molesworth <cpan@entitymodel.com>
+
+=head1 LICENSE
+
+Copyright Tom Molesworth 2011. Licensed under the same terms as Perl itself.

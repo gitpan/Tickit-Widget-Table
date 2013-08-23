@@ -1,0 +1,318 @@
+=for comment POD_DERIVED_INDEX_GENERATED
+The following documentation is automatically generated.  Please do not edit
+this file, but rather the original, inline with Tickit::Widget::Table
+at lib/Tickit/Widget/Table.pm
+(on the system that originally ran this).
+If you do edit this file, and don't want your changes to be removed, make
+sure you change the first line.
+
+=cut
+
+=head1 NAME
+
+Tickit::Widget::Table - tabular widget support for L<Tickit>
+
+=head1 VERSION
+
+version 0.100
+
+=head1 SYNOPSIS
+
+ use Tickit::Widget::HBox;
+ use Tickit::Widget::Table;
+ # Create the widget
+ my $table = Tickit::Widget::Table->new(
+   padding => 1,
+   columns => [
+     { label => 'First column', align => 'center', width => 'auto' },
+     { label => 'Second column', align => 'right', width => 'auto' },
+   ],
+ );
+ $table->add_row(
+   data => [
+     'First entry',
+     'Second column',
+   ]
+ );
+ $table->add_row(
+   data => [
+     'Second entry',
+     'More data',
+   ]
+ );
+ # Put it in something
+ my $container = Tickit::Widget::HBox->new;
+ $container->add($table, expand => 1);
+
+=head1 DESCRIPTION
+
+Basic support for table widgets. See examples/ in the main distribution for usage
+instructions.
+
+=head2 Highlight mode
+
+=over 4
+
+=item * none - no highlight support
+
+=item * row - up/down keys move highlight between rows
+
+=item * column - left/right keys select the currently highlighted column
+
+=item * cell - individual cells can be highlighted
+
+=back
+
+=head1 METHODS
+
+=head2 new
+
+Create a new table widget.
+
+Takes the following named parameters:
+
+=over 4
+
+=item * columns - column definition arrayref, see L</add_column> for the details
+
+=item * padding - amount of padding (in chars) to apply between columns
+
+=item * default_action - coderef to execute when a cell/row/column
+is activated, unless there is an action defined on that item already
+
+=item * header - flag to select whether a header is shown. If not provided it is
+assumed that a header is wanted.
+
+=item * highlight_mode - one of row (default), column, cell, defines how navigation
+and selection work
+
+=back
+
+=head2 add_header_row
+
+Adds a header row to the top of the table. Takes no parameters.
+
+=head2 add_initial_columns
+
+Populates initial columns from the given arrayref. Generally handled
+internally when passing C< columns > in the constructor.
+
+=head2 padding
+
+Returns amount of padding between cells
+
+=head2 lines
+
+Number of rows.
+
+=head2 cols
+
+Number of screen columns.
+
+=head2 rows
+
+'rows' are the number of data rows we have in the table. That's one less
+than the total number of rows if we have a header row
+
+=head2 columns
+
+Number of columns in the table.
+
+=head2 data_rows
+
+Returns the rows containing data - this excludes the header row if there is
+one.
+
+=head2 reposition_cursor
+
+Put the cursor in the right place. Possibly used internally, probably of
+dubious utility.
+
+=head2 header_row
+
+Returns the header row if there is one.
+
+=head2 set_highlighted_row
+
+Highlight a row in the table. Only one row can be highlighted at a time,
+as opposed to selected rows.
+
+=head2 set_highlighted_column
+
+Highlight a row in the table. Only one row can be highlighted at a time,
+as opposed to selected rows.
+
+=head2 set_highlighted_cell
+
+Highlight a cell in the table. Only one cell can be highlighted at a time,
+as opposed to selected rows.
+
+=head2 highlight_row
+
+Returns currently-highlighted row, if we have one.
+In cell mode, returns the row corresponding to current cell highlight.
+
+=head2 highlight_column
+
+Returns currently-highlighted column, if we have one.
+In cell mode, returns the column corresponding to current cell highlight.
+
+=head2 highlight_cell
+
+=head2 highlighted_item
+
+=head2 highlight_row_index
+
+Index of the currently-highlighted row.
+
+=head2 highlight_column_index
+
+Index of the currently-highlighted column.
+
+=head2 refit
+
+Check current widths and apply width on columns we already have sufficient information for.
+
+=head2 min_refit
+
+Try to shrink columns down to minimum possible width if they're
+flexible. Typically used by L</add_column> to allow the new
+column to fit properly.
+
+=head2 get_column_width
+
+Return the width for the given column, or undef if this
+column should be autosized.
+
+=head2 column_list
+
+Returns all columns for this table as a list.
+
+=head2 add_column
+
+Add a new column to the table, returning a
+L<Tickit::Widget::Table::Column> instance.
+
+=head2 update_highlight
+
+=head2 add_row
+
+Adds a new row of data to the table. This will instantiate
+a new L<Tickit::Widget::Table::Row> and return it.
+
+=head2 remove_row
+
+Remove the given row.
+
+=head2 clear_data
+
+Clears any data for this table, leaving structure including header row intact.
+
+=head2 window_gained
+
+Once we have a window, we want to refit to ensure that all the child elements
+are given subwindows with appropriate geometry.
+
+=head2 window_lost
+
+When the main window is lost, we also clear all the subwindows that were created for children.
+
+=head2 on_key
+
+Key handling: convert some common key requests to events.
+
+=head2 on_toggle_select_all
+
+Select everything, unless everything is already selected in which case select nothing instead.
+
+=head2 on_select
+
+Toggle selection for this row.
+
+=head2 on_key_insert
+
+Should not be here.
+
+=head2 on_key_delete
+
+Should not be here.
+
+=head2 on_cursor_up
+
+Move to the row above.
+
+=head2 on_cursor_home
+
+Move to the top of the table.
+
+=head2 on_cursor_end
+
+Move to the end of the table.
+
+=head2 on_cursor_pageup
+
+Move several lines up.
+
+=head2 on_cursor_down
+
+Move one line down.
+
+=head2 on_cursor_pagedown
+
+Move several lines down.
+
+=head2 on_cursor_left
+
+Move to the item on the left.
+
+=head2 on_cursor_right
+
+Move to the item on the right.
+
+=head2 highlight_mode
+
+=head2 default_action
+
+=head2 bind_key
+
+Accessor/mutator for the C<on_key> callback.
+
+Returns $self when used as a mutator, or the current C<on_key> value when
+called with no parameters.
+
+=head2 on_highlight_changed
+
+Accessor/mutator for the C<on_highlight_changed> callback.
+
+Returns $self when used as a mutator, or the current C<on_highlight_changed> value when
+called with no parameters.
+
+=head1 INHERITED METHODS
+
+=over 4
+
+=item L<Tickit::Widget::VBox>
+
+L<get_child_base|Tickit::Widget::VBox/get_child_base>, L<get_total_quota|Tickit::Widget::VBox/get_total_quota>, L<set_child_window|Tickit::Widget::VBox/set_child_window>
+
+=item L<Tickit::Widget::LinearBox>
+
+L<add|Tickit::Widget::LinearBox/add>, L<child_opts|Tickit::Widget::LinearBox/child_opts>, L<children|Tickit::Widget::LinearBox/children>, L<remove|Tickit::Widget::LinearBox/remove>, L<render_to_rb|Tickit::Widget::LinearBox/render_to_rb>, L<reshape|Tickit::Widget::LinearBox/reshape>, L<set_child|Tickit::Widget::LinearBox/set_child>, L<set_child_opts|Tickit::Widget::LinearBox/set_child_opts>
+
+=item L<Tickit::ContainerWidget>
+
+L<child_resized|Tickit::ContainerWidget/child_resized>, L<children_changed|Tickit::ContainerWidget/children_changed>, L<find_child|Tickit::ContainerWidget/find_child>, L<focus_next|Tickit::ContainerWidget/focus_next>
+
+=item L<Tickit::Widget>
+
+L<get_style_pen|Tickit::Widget/get_style_pen>, L<get_style_text|Tickit::Widget/get_style_text>, L<get_style_values|Tickit::Widget/get_style_values>, L<key_focus_next_after|Tickit::Widget/key_focus_next_after>, L<key_focus_next_before|Tickit::Widget/key_focus_next_before>, L<on_pen_changed|Tickit::Widget/on_pen_changed>, L<parent|Tickit::Widget/parent>, L<pen|Tickit::Widget/pen>, L<redraw|Tickit::Widget/redraw>, L<resized|Tickit::Widget/resized>, L<set_parent|Tickit::Widget/set_parent>, L<set_pen|Tickit::Widget/set_pen>, L<set_style|Tickit::Widget/set_style>, L<set_style_tag|Tickit::Widget/set_style_tag>, L<set_window|Tickit::Widget/set_window>, L<style_classes|Tickit::Widget/style_classes>, L<take_focus|Tickit::Widget/take_focus>, L<window|Tickit::Widget/window>
+
+=back
+
+=head1 AUTHOR
+
+Tom Molesworth <cpan@entitymodel.com>
+
+=head1 LICENSE
+
+Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.

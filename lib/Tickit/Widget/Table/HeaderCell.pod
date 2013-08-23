@@ -1,0 +1,57 @@
+=for comment POD_DERIVED_INDEX_GENERATED
+The following documentation is automatically generated.  Please do not edit
+this file, but rather the original, inline with Tickit::Widget::Table::HeaderCell
+at lib/Tickit/Widget/Table/HeaderCell.pm
+(on the system that originally ran this).
+If you do edit this file, and don't want your changes to be removed, make
+sure you change the first line.
+
+=cut
+
+=head1 NAME
+
+Tickit::Widget::Table::HeaderCell - header cell for a table
+
+=head1 VERSION
+
+version 0.100
+
+=head1 SYNOPSIS
+
+=head1 DESCRIPTION
+
+=head1 METHODS
+
+=head2 new
+
+Instantiate a new header cell.
+
+=head1 INHERITED METHODS
+
+=over 4
+
+=item L<Tickit::Widget::Table::Cell>
+
+L<action|Tickit::Widget::Table::Cell/action>, L<cols|Tickit::Widget::Table::Cell/cols>, L<column|Tickit::Widget::Table::Cell/column>, L<display_value|Tickit::Widget::Table::Cell/display_value>, L<display_width|Tickit::Widget::Table::Cell/display_width>, L<display_xpos|Tickit::Widget::Table::Cell/display_xpos>, L<render_to_rb|Tickit::Widget::Table::Cell/render_to_rb>, L<row|Tickit::Widget::Table::Cell/row>, L<rows|Tickit::Widget::Table::Cell/rows>, L<set_column|Tickit::Widget::Table::Cell/set_column>, L<set_row|Tickit::Widget::Table::Cell/set_row>, L<set_table|Tickit::Widget::Table::Cell/set_table>, L<table|Tickit::Widget::Table::Cell/table>, L<update_highlight_style|Tickit::Widget::Table::Cell/update_highlight_style>, L<window_gained|Tickit::Widget::Table::Cell/window_gained>, L<window_lost|Tickit::Widget::Table::Cell/window_lost>
+
+=item L<Tickit::Widget::Static>
+
+L<lines|Tickit::Widget::Static/lines>, L<on_mouse|Tickit::Widget::Static/on_mouse>, L<set_on_click|Tickit::Widget::Static/set_on_click>, L<set_text|Tickit::Widget::Static/set_text>, L<text|Tickit::Widget::Static/text>
+
+=item L<Tickit::Widget>
+
+L<get_style_pen|Tickit::Widget/get_style_pen>, L<get_style_text|Tickit::Widget/get_style_text>, L<get_style_values|Tickit::Widget/get_style_values>, L<key_focus_next_after|Tickit::Widget/key_focus_next_after>, L<key_focus_next_before|Tickit::Widget/key_focus_next_before>, L<on_pen_changed|Tickit::Widget/on_pen_changed>, L<parent|Tickit::Widget/parent>, L<pen|Tickit::Widget/pen>, L<redraw|Tickit::Widget/redraw>, L<reshape|Tickit::Widget/reshape>, L<resized|Tickit::Widget/resized>, L<set_parent|Tickit::Widget/set_parent>, L<set_pen|Tickit::Widget/set_pen>, L<set_style|Tickit::Widget/set_style>, L<set_style_tag|Tickit::Widget/set_style_tag>, L<set_window|Tickit::Widget/set_window>, L<style_classes|Tickit::Widget/style_classes>, L<take_focus|Tickit::Widget/take_focus>, L<window|Tickit::Widget/window>
+
+=item L<Tickit::Widget::Table::Highlight>
+
+L<activate|Tickit::Widget::Table::Highlight/activate>, L<can_highlight|Tickit::Widget::Table::Highlight/can_highlight>, L<highlighted|Tickit::Widget::Table::Highlight/highlighted>, L<is_highlighted|Tickit::Widget::Table::Highlight/is_highlighted>, L<is_selected|Tickit::Widget::Table::Highlight/is_selected>
+
+=back
+
+=head1 AUTHOR
+
+Tom Molesworth <cpan@entitymodel.com>
+
+=head1 LICENSE
+
+Copyright Tom Molesworth 2011. Licensed under the same terms as Perl itself.

@@ -1,12 +1,11 @@
 package Tickit::Widget::Table::Cell;
 {
-  $Tickit::Widget::Table::Cell::VERSION = '0.003';
+  $Tickit::Widget::Table::Cell::VERSION = '0.100';
 }
 use strict;
 use warnings;
 use 5.010;
 use parent qw(Tickit::Widget::Static Tickit::Widget::Table::Highlight);
-use Tickit::Utils qw(textwidth);
 
 =head1 NAME
 
@@ -14,7 +13,7 @@ Tickit::Widget::Table::Cell - cells in a L<Tickit::Widget::Table>.
 
 =head1 VERSION
 
-version 0.003
+version 0.100
 
 =head1 DESCRIPTION
 
@@ -22,7 +21,24 @@ Not intended for direct use - see L<Tickit::Widget::Table>.
 
 =cut
 
+use Tickit::Utils qw(textwidth);
 use Scalar::Util qw(weaken);
+
+use Tickit::Style;
+
+BEGIN {
+	style_definition base =>
+		fg => 'white',
+		spacing => 0;
+
+	style_definition ':highlight' =>
+		fg => 'yellow',
+		bg => 'blue',
+		b => 1;
+}
+
+use constant CLEAR_BEFORE_RENDER => 0;
+use constant WIDGET_PEN_FROM_STYLE => 1;
 
 =head1 METHODS
 
@@ -41,6 +57,8 @@ sub cols {
 	}
 	return $self->{widget} ? $self->{widget}->cols : $self->SUPER::cols;
 }
+
+sub rows { 1 }
 
 =head2 display_xpos
 
@@ -100,21 +118,34 @@ sub window_lost {
 	$self->{widget}->set_window(undef);
 }
 
-=head2 render
+=head2 render_to_rb
 
 Either render through the parent class or delegate to our widget.
 
 =cut
 
-sub render {
-	my $self = shift;
-	my $win = $self->window or return;
+sub render_to_rb {
+	my ($self, $rb, $rect) = @_;
+
 	if($self->{widget}) {
-		$self->{widget}->render(@_);
+		$self->{widget}->render_to_rb(@_);
 	} else {
-		# Tickit::Widget::Static probably
-		$self->SUPER::render(@_);
+		my $txt = $self->text;
+		$rb->goto(0,0);
+		my $padding = $self->table->padding;
+
+		my $pen = $self->get_style_pen;
+#		warn "Spaces: " . (-$padding + $self->cols - textwidth $txt);
+		$rb->text($txt . (' ' x (-$padding + $self->cols - textwidth $txt)), $pen);
+		# Tickit::Widget
+		$rb->erase($padding, $pen) if $padding;
 	}
+}
+
+sub update_highlight_style {
+	my $self = shift;
+	$self->set_style_tag(highlight => shift);
+	$self
 }
 
 =head2 display_value
@@ -197,12 +228,14 @@ sub new {
 	my $row = delete $args{row} or die "No row";
 	my $col = delete $args{column} or die "No column";
 	my $content = delete $args{content};
-	my $self = $class->SUPER::new(%args);
+	my $self = $class->SUPER::new(%args, text => '');
+	$self->{highlighted} = 0;
 	$self->set_column($col);
 	$self->set_row($row);
 	$self->set_table($table);
 
 	$col->add_cell($self);
+	$content = '' unless defined $content;
 	if(ref $content) {
 		$self->{widget} = $content;
 	} else {

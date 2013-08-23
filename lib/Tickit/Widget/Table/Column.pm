@@ -1,18 +1,11 @@
 package Tickit::Widget::Table::Column;
 {
-  $Tickit::Widget::Table::Column::VERSION = '0.003';
+  $Tickit::Widget::Table::Column::VERSION = '0.100';
 }
 use strict;
 use warnings;
 use 5.010;
 use parent qw(Tickit::Widget Tickit::Widget::Table::Highlight);
-
-use List::Util qw(max);
-use List::UtilsBy qw(extract_by);
-use POSIX qw(strftime);
-use Scalar::Util qw(weaken);
-use List::Util qw(max);
-use Tickit::Utils qw(textwidth);
 
 =head1 NAME
 
@@ -20,7 +13,7 @@ Tickit::Widget::Table::Column - a column in a L<Ticket::Widget::Table>
 
 =head1 VERSION
 
-version 0.003
+version 0.100
 
 =head1 DESCRIPTION
 
@@ -29,6 +22,16 @@ See L<Tickit::Widget::Table>.
 A column includes a single header cell, and zero or more data cells.
 
 =cut
+
+use List::Util qw(max);
+use List::UtilsBy qw(extract_by);
+use POSIX qw(strftime);
+use Scalar::Util qw(weaken);
+use List::Util qw(max);
+use Tickit::Utils qw(textwidth);
+
+use constant CLEAR_BEFORE_RENDER => 0;
+use constant WIDGET_PEN_FROM_STYLE => 1;
 
 =head1 METHODS
 
@@ -73,6 +76,7 @@ sub new {
 	my $can_highlight = delete $args{can_highlight} // 1;
 
 	my $self = $class->SUPER::new(%args);
+	$self->{highlighted} = 0;
 
 	$self->{can_highlight} = $can_highlight;
 	$self->{table} = $table;
@@ -202,8 +206,7 @@ Returns the number of (screen) columns we'd like to have.
 
 sub cols {
 	my $self = shift;
-	my $w = max map $_->cols, $self->cells;
-	$w //= 0;
+	my $w = max 0, map $_->cols, $self->cells;
 	$w += $self->table->padding;
 	return 1 if $self->width_type eq 'auto' && !$w;
 	return $w;
@@ -270,11 +273,11 @@ sub set_displayed_width {
 	my $w = shift;
 	$self->{displayed_width} = $w;
 	for my $child (@{ $self->{cells} }) {
+		# We only need to update child nodes which already have a window:
+		# no window means we're not in view or parent doesn't have a window
+		# yet, so we'll pick that up later.
 		if(my $win = $child->window) {
 			$win->change_geometry($win->top, $win->left, $win->lines, $w);
-		} else {
-#			$win->change_geometry($win->top, $win->left, $win->lines, $w);
-			warn "No window for child $child on $self?";
 		}
 	}
 	return $self;
@@ -386,6 +389,12 @@ Returns a list of all contained L<Tickit::Widget::Cell> instances.
 =cut
 
 sub cells { @{ shift->{cells} || [] } }
+
+sub update_highlight_style {
+	my $self = shift;
+	$_->update_highlight_style(@_) for $self->cells;
+	$self;
+}
 
 1;
 

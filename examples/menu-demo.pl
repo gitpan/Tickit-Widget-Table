@@ -22,7 +22,7 @@ sub show {
 	my $win = $self->window->make_float(8,8, $self->window->lines - 16, $self->window->cols - 16);
 #	bless $win, 'Tickit::Window';
 	my $frame = Tickit::Widget::Frame->new(
-		style => 'single',
+		# style => 'single',
 		title => $self->title,
 		title_align => 0.5,
 	);
@@ -51,12 +51,12 @@ sub show {
 		$col->action($code);
 	}
 	$buttons->add_row(data => \@label);
-	$vbox->add($content, expand => 0.75);
+	$vbox->add($content, expand => 3);
 	my $hbox = Tickit::Widget::HBox->new;
-	$hbox->add(Tickit::Widget::Static->new(text => ''), expand => 0.25);
-	$hbox->add($buttons, expand => 0.5);
-	$hbox->add(Tickit::Widget::Static->new(text => ''), expand => 0.25);
-	$vbox->add($hbox, expand => 0.25);
+	$hbox->add(Tickit::Widget::Static->new(text => ''), expand => 1);
+	$hbox->add($buttons, expand => 2);
+	$hbox->add(Tickit::Widget::Static->new(text => ''), expand => 1);
+	$vbox->add($hbox, expand => 1);
 	$frame->add($vbox);
 	$frame->set_window($win);
 	$self->{frame} = $frame;
@@ -374,7 +374,7 @@ sub show_menu {
 	return if $self->popup;
 	my $win = $self->parent_menu->popup_container or die "No popup container window?";
 	my $subframe = Tickit::Widget::Frame->new(
-		style => 'single',
+		# style => 'single',
 		$self->menu_attrs
 	);
 	$subframe->add($self->menu);
@@ -648,17 +648,17 @@ sub new {
 	my $left = Tickit::Widget::Static->new(text => 'left pane');
 	my $right = Tickit::Widget::Static->new(text => 'right pane');
 	my $frame = Tickit::Widget::Frame->new(
-		style => 'double'
+		# style => 'double'
 	);
 	$frame->add($left);
 	$panes->add($frame, expand => 1);
 	$frame = Tickit::Widget::Frame->new(
-		style => 'single'
+		# style => 'single'
 	);
 	$frame->add($right);
 	$panes->add($frame, expand => 1);
-	$holder->add($panes, expand => 1);
-	$holder->add($messages, expand => 0.1);
+	$holder->add($panes, expand => 5);
+	$holder->add($messages, expand => 1);
 	$holder->add(Tickit::Widget::Statusbar->new(loop => $::LOOP));
 	$holder->set_window($self->rootwin);
 	$self->rootwin->expose;
@@ -677,7 +677,6 @@ sub run {
 	# hax
 	$::LOOP = $self->{loop};
 	$self->{ui} = Layout->new;
-	$self->loop->add($self->ui);
 	$self->ui->run;
 }
 

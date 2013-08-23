@@ -4,7 +4,7 @@
       "Tom Molesworth <cpan@entitymodel.com>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Dist::Zilla version 4.300021, CPAN::Meta::Converter version 2.120921",
+   "generated_by" : "Dist::Zilla version 4.300036, CPAN::Meta::Converter version 2.132140",
    "license" : [
       "perl_5"
    ],
@@ -14,22 +14,27 @@
    },
    "name" : "Tickit-Widget-Table",
    "prereqs" : {
-      "configure" : {
+      "build" : {
          "requires" : {
-            "ExtUtils::MakeMaker" : "6.30"
+            "perl" : "5.010001"
          }
       },
-      "runtime" : {
+      "configure" : {
          "requires" : {
-            "List::UtilsBy" : "0",
-            "Tickit" : "0.12",
-            "parent" : "0",
-            "perl" : "5.010"
+            "ExtUtils::MakeMaker" : "6.48"
+         }
+      },
+      "develop" : {
+         "requires" : {
+            "Test::Pod" : "1.41"
          }
       },
       "test" : {
          "requires" : {
-            "Test::More" : "0.98"
+            "Capture::Tiny" : "0",
+            "Test::CheckDeps" : "0.006",
+            "Test::More" : "0.94",
+            "blib" : "0"
          }
       }
    },
@@ -41,6 +46,6 @@
       },
       "homepage" : "http://search.cpan.org/dist/Tickit-Widget-Table/"
    },
-   "version" : "0.003"
+   "version" : "0.100"
 }
 

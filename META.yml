@@ -3,22 +3,21 @@ abstract: 'Table widget'
 author:
   - 'Tom Molesworth <cpan@entitymodel.com>'
 build_requires:
-  Test::More: 0.98
+  Capture::Tiny: 0
+  Test::CheckDeps: 0.006
+  Test::More: 0.94
+  blib: 0
+  perl: 5.010001
 configure_requires:
-  ExtUtils::MakeMaker: 6.30
+  ExtUtils::MakeMaker: 6.48
 dynamic_config: 0
-generated_by: 'Dist::Zilla version 4.300021, CPAN::Meta::Converter version 2.120921'
+generated_by: 'Dist::Zilla version 4.300036, CPAN::Meta::Converter version 2.132140'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
   version: 1.4
 name: Tickit-Widget-Table
-requires:
-  List::UtilsBy: 0
-  Tickit: 0.12
-  parent: 0
-  perl: 5.010
 resources:
   bugtracker: http://rt.cpan.org/Public/Dist/Display.html?Name=Tickit-Widget-Table
   homepage: http://search.cpan.org/dist/Tickit-Widget-Table/
-version: 0.003
+version: 0.100

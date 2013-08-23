@@ -1,0 +1,62 @@
+This file contains message digests of all files listed in MANIFEST,
+signed via the Module::Signature module, version 0.73.
+
+To verify the content in this distribution, first make sure you have
+Module::Signature installed, then type:
+
+    % cpansign -v
+
+It will check each file's integrity, as well as the signature's
+validity.  If "==> Signature verified OK! <==" is not displayed,
+the distribution may already have been compromised, and you should
+not run its Makefile.PL or Build.PL.
+
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
+
+SHA1 a6cd5ca78d09ed0f049be737a4e7f8aae529c952 Changes
+SHA1 fd434cf4287ad1d9b96a4b0b2e5c4da20b536d01 INSTALL
+SHA1 fcecd203a27c044eb4138dc70de012aa384a2234 LICENSE
+SHA1 dd847dc8a5de3488dfd77b12ba555ab5576085e1 MANIFEST
+SHA1 c76da060087a1c0d054e0ee7ede9600dc6a34ce2 META.json
+SHA1 4cef7a57b300a635d392aa23f6f16506c8a356b2 META.yml
+SHA1 14f0e0e293efaf3a2de229ecb75fe472ae034f76 Makefile.PL
+SHA1 68e2c40cab9ca23d639816bc63cc76b3ca812565 README
+SHA1 dd118eb590f01ba045c316f64b5f77ca84999b37 dist.ini
+SHA1 4c167dc1a92e09ca917515828d2689130fd519eb examples/dialog-demo.pl
+SHA1 03806be3bbebeec4d864f47ba36310393771ef3d examples/menu-demo.pl
+SHA1 b4030701145f4aa5dca00c3d2a5018129f61ed37 examples/scroll.pl
+SHA1 0ba2038d2bd4b3f55bbe8d7dd35d83d11fb4b04c examples/simple.pl
+SHA1 d05298dd26744d087ecc7468d2169fdbca477dcc examples/styles.pl
+SHA1 aa652fa9ce6fa6a86a2fe61fd6f452ea894b8411 lib/Tickit/Widget/Table.pm
+SHA1 4eb3d129b2bb6313c4ce1ef874a5454338a3b6d0 lib/Tickit/Widget/Table.pod
+SHA1 89a3d5a8c9ade93f083ecf43a4438b032f927328 lib/Tickit/Widget/Table/Cell.pm
+SHA1 80e888a2234f0ee467c994bd132aed351e45ff4e lib/Tickit/Widget/Table/Cell.pod
+SHA1 60b1d83d10efe43a337c902b31953a74531c7071 lib/Tickit/Widget/Table/Column.pm
+SHA1 5ee6bdb638ea84f228fb66e19f15149a17bf4ec1 lib/Tickit/Widget/Table/Column.pod
+SHA1 663eba31ab641581dad3159631ed0217e017ac89 lib/Tickit/Widget/Table/HeaderCell.pm
+SHA1 0aec3885110901aa526c7e86f502e182cc62e453 lib/Tickit/Widget/Table/HeaderCell.pod
+SHA1 88c54b333bd712dfb0774248b90ec8e46eaab3a8 lib/Tickit/Widget/Table/HeaderRow.pm
+SHA1 7328e17369a6d5a62ddef37ad796ea009c8b2761 lib/Tickit/Widget/Table/HeaderRow.pod
+SHA1 1d7b3201b9bba1773cb49eb1c643ee4dd410f21d lib/Tickit/Widget/Table/Highlight.pm
+SHA1 e79b003bcf5e2f59ad6a15823e646b23583db102 lib/Tickit/Widget/Table/Row.pm
+SHA1 95ae4acb3006e42a7ad6ed3d71b0f6b2bc4c4978 lib/Tickit/Widget/Table/Row.pod
+SHA1 90f75289c4dda63c94bc5e897f4996b15d9e42dd t/00-check-deps.t
+SHA1 b725d8d2683630d209a67aa9aca980134b873923 t/00-compile.t
+SHA1 2124e0b4b923b792b782214a609a31e2f2bc9716 t/render.t
+SHA1 198d1665317c3d91e3bb81f0a3b8dad8d4d66f20 xt/release/common_spelling.t
+SHA1 c6c3c9f7fe12058b4771449dff874b1c450c982c xt/release/mojibake.t
+SHA1 9934d36e45e1143c1a54658bc48872e0591af41b xt/release/pod-syntax.t
+SHA1 fd1fa776fca35fc8f1bdd24ee3fbaa1eca755a44 xt/release/synopsis.t
+SHA1 bbcd59d081d9940af5d43337ae85458075933829 xt/release/test-version.t
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQEcBAEBAgAGBQJSF94lAAoJEFKElMNpjtyD87AIAJjNk6/JINF9vA5vDoRwXfDT
+RWNlnaduxqHkwBbnHfGpyYCkuoqZP/5QAvKZuUWPeVc5O0PO6+JfZly/gA5nWwfg
+06wXdyLaEZbopz5dPY5dzI71YyNSU/pgLrlGL/3/ZrdmM/X/3tsEYeI9NDoZ4gU2
+Wi20maOiBrkFicgpax6tXKEj25rOTDo4cgdyFAjQ7mK4ZnnxCNUPxpwHus5nCdE2
+Vb6WVyFYc1FAJTE7uXhh4yAogzeS4VxUdVTM8aCBzph6BTj1Gs41p6Mp9VzNud3A
+IXWVG8GQFJCsat+q/pq9Nrbyubg3ODkE2ujy8T692mEly9LuZJyUk4YCMgeP2us=
+=bHka
+-----END PGP SIGNATURE-----

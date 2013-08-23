@@ -20,7 +20,7 @@ sub show {
 	my $self = shift;
 	my $win = $self->window->make_float(8,8, $self->window->lines - 16, $self->window->cols - 16);
 	my $frame = Tickit::Widget::Frame->new(
-		style => 'single',
+		style => { linestyle => 'single' },
 		title => $self->title,
 		title_align => 0.5,
 	);
@@ -49,12 +49,12 @@ sub show {
 		$col->action($code);
 	}
 	$buttons->add_row(data => \@label);
-	$vbox->add($content, expand => 0.75);
+	$vbox->add($content, expand => 3);
 	my $hbox = Tickit::Widget::HBox->new;
-	$hbox->add(Tickit::Widget::Static->new, expand => 0.25);
-	$hbox->add($buttons, expand => 0.5);
-	$hbox->add(Tickit::Widget::Static->new, expand => 0.25);
-	$vbox->add($hbox, expand => 0.25);
+	$hbox->add(Tickit::Widget::Static->new, expand => 1);
+	$hbox->add($buttons, expand => 2);
+	$hbox->add(Tickit::Widget::Static->new, expand => 1);
+	$vbox->add($hbox, expand => 1);
 	$frame->add($vbox);
 	$frame->set_window($win);
 	$self->{frame} = $frame;
@@ -121,7 +121,7 @@ sub run {
 	$self->{ui} = Layout->new;
 	# hax
 	$::LOOP = $self->{loop};
-	$self->loop->add($self->ui);
+#	$self->loop->add($self->ui);
 	$self->ui->run;
 }
 

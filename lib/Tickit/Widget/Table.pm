@@ -3,10 +3,9 @@ package Tickit::Widget::Table;
 use strict;
 use warnings;
 use parent qw(Tickit::Widget::VBox);
-use Scalar::Util qw(weaken);
-use List::Util qw(max sum);
+# use Carp::Always;
 
-our $VERSION = '0.003';
+our $VERSION = '0.100';
 
 =head1 NAME
 
@@ -14,7 +13,7 @@ Tickit::Widget::Table - tabular widget support for L<Tickit>
 
 =head1 VERSION
 
-version 0.003
+version 0.100
 
 =head1 SYNOPSIS
 
@@ -22,19 +21,23 @@ version 0.003
  use Tickit::Widget::Table;
  # Create the widget
  my $table = Tickit::Widget::Table->new(
- 	padding => 1,
-	columns => [
-		{ label => 'First column', align => 'center', width => 'auto' },
-		{ label => 'Second column', align => 'right', width => 'auto' },
-	],
+   padding => 1,
+   columns => [
+     { label => 'First column', align => 'center', width => 'auto' },
+     { label => 'Second column', align => 'right', width => 'auto' },
+   ],
  );
  $table->add_row(
- 	'First entry',
-	'Second column',
+   data => [
+     'First entry',
+     'Second column',
+   ]
  );
  $table->add_row(
- 	'Second entry',
-	'More data',
+   data => [
+     'Second entry',
+     'More data',
+   ]
  );
  # Put it in something
  my $container = Tickit::Widget::HBox->new;
@@ -45,15 +48,37 @@ version 0.003
 Basic support for table widgets. See examples/ in the main distribution for usage
 instructions.
 
+=head2 Highlight mode
+
+=over 4
+
+=item * none - no highlight support
+
+=item * row - up/down keys move highlight between rows
+
+=item * column - left/right keys select the currently highlighted column
+
+=item * cell - individual cells can be highlighted
+
+=back
+
 =cut
 
-use List::Util qw(min);
+use List::Util qw(min max sum);
+use Scalar::Util qw(weaken);
+
 use POSIX qw(floor);
 
 use Tickit::Widget::Table::HeaderRow;
 use Tickit::Widget::Table::Cell;
 use Tickit::Widget::Table::Column;
 use Tickit::Widget::Table::Row;
+
+# See Tickit::Widget docs for these
+use constant CLEAR_BEFORE_RENDER => 0;
+use constant KEYPRESSES_FROM_STYLE => 1;
+use constant WIDGET_PEN_FROM_STYLE => 1;
+use constant CAN_FOCUS => 1;
 
 =head1 METHODS
 
@@ -98,6 +123,7 @@ sub new {
 
 	$self->add_initial_columns($columns);
 	$self->add_header_row($header) if $header;
+	$self->take_focus;
 	return $self;
 }
 
@@ -112,6 +138,7 @@ sub add_header_row {
 	return if $self->{header_row};
 
 	my $header_row = Tickit::Widget::Table::HeaderRow->new(
+		classes => [ $self->style_classes ],
 		table	=> $self,
 		column	=> [ $self->column_list ]
 	);
@@ -199,7 +226,7 @@ sub data_rows {
 	my $self = shift;
 	my @children = $self->children;
 	# Ignore the first if we have a header
-	shift @children if $self->{header_row};
+	shift @children if $self->header_row;
 	return @children;
 }
 
@@ -210,13 +237,10 @@ dubious utility.
 
 =cut
 
-sub reposition_cursor {
+sub reposition_cursor { return;
 	my $self = shift;
 	$self->{on_highlight_changed}->($self) if $self->{on_highlight_changed};
 	$self
-#	my $row = $self->highlight_row or return;
-#	my $col = $self->highlight_col or return;
-#	$row->reposition_cursor;
 }
 
 =head2 header_row
@@ -227,8 +251,7 @@ Returns the header row if there is one.
 
 sub header_row {
 	my $self = shift;
-	return unless $self->{header_row};
-	return +($self->children)[0];
+	$self->{header_row}
 }
 
 =head2 set_highlighted_row
@@ -272,6 +295,39 @@ as opposed to selected rows.
 =cut
 
 sub set_highlighted_column {
+	my $self = shift;
+	my $id = shift;
+
+	delete $self->{highlight_column};
+	delete $self->{highlight_column_index};
+
+	my $idx = 0;
+	foreach my $col ($self->column_list) {
+		if($id == $idx) {
+			my $redraw = !$col->is_highlighted;
+			$col->highlighted(1);
+			$self->{highlight_column_index} = $id;
+			$self->{highlight_column} = $col;
+			$col->redraw if $redraw;
+		} else {
+			my $redraw = $col->is_highlighted;
+			$col->highlighted(0);
+			$col->redraw if $redraw;
+		}
+		++$idx;
+	}
+	$self->reposition_cursor;
+	return $self;
+}
+
+=head2 set_highlighted_cell
+
+Highlight a cell in the table. Only one cell can be highlighted at a time,
+as opposed to selected rows.
+
+=cut
+
+sub set_highlighted_cell {
 	my $self = shift;
 	my $id = shift;
 
@@ -366,7 +422,7 @@ sub refit {
 	my $self = shift;
 	return unless $self->window;
 
-# Horizontal total for existing columns
+	# Horizontal total for existing columns
 	my $htotal = 0;
 
 	my @auto;
@@ -460,6 +516,7 @@ sub add_column {
 
 # Instantiate if we can
 	my $col = Tickit::Widget::Table::Column->new(
+		classes => [ $self->style_classes ],
 		table	=> $self,
 		%args
 	);
@@ -506,6 +563,7 @@ sub add_row {
 
 # Instantiate the row using parameters as the cell values
 	my $row = Tickit::Widget::Table::Row->new(
+		classes => [ $self->style_classes ],
 		table	=> $self,
 		column	=> [ $self->column_list ],
 		can_highlight => $args{can_highlight},
@@ -590,19 +648,17 @@ sub window_lost {
 
 { # put ->on_key in a little scope of its own
 my %key_map = (
-	'C-q' => 'on_quit',
-	'Up' => 'on_cursor_up',
-	'PageUp' => 'on_cursor_pageup',
-	'Down' => 'on_cursor_down',
+	'Up'       => 'on_cursor_up',
+	'PageUp'   => 'on_cursor_pageup',
+	'Down'     => 'on_cursor_down',
 	'PageDown' => 'on_cursor_pagedown',
-	'Home' => 'on_cursor_home',
-	'End' => 'on_cursor_end',
-	'Left' => 'on_cursor_left',
-	'Right' => 'on_cursor_right',
-	'Insert' => 'on_key_insert',
-	'Delete' => 'on_key_delete',
-	'M-a' => 'on_toggle_select_all',
-	'Tab' => 'on_switch_window',
+	'Home'     => 'on_cursor_home',
+	'End'      => 'on_cursor_end',
+	'Left'     => 'on_cursor_left',
+	'Right'    => 'on_cursor_right',
+	'Insert'   => 'on_key_insert',
+	'Delete'   => 'on_key_delete',
+	'M-a'      => 'on_toggle_select_all',
 );
 my %text_map = (
 	' ' => 'on_select',
@@ -616,6 +672,9 @@ Key handling: convert some common key requests to events.
 
 sub on_key {
 	my $self = shift;
+	# Not for us unless we have focus
+	return unless $self->window->is_focused;
+
 	my ($type, $str) = @_; # $key isn't used here. yet.
 	return 1 if $self->{on_key} && !$self->{on_key}->(@_);
 
@@ -636,31 +695,6 @@ sub on_key {
 	}
 	return 0;
 }
-}
-
-=head2 on_quit
-
-Handle a quit request. This is clearly not the place to have
-code like this.
-
-=cut
-
-sub on_quit {
-	my $self = shift;
-	my $loop = $self->window->root->{tickit}->get_loop;
-	weaken $loop;
-	$loop->later(sub { $loop->loop_stop; });
-}
-
-=head2 on_switch_window
-
-uh, no. you didn't see this.
-
-=cut
-
-sub on_switch_window {
-	my $self = shift;
-	$self->table->parent->{on_tab}->() if $self->table->parent->{on_tab};
 }
 
 =head2 on_toggle_select_all
@@ -724,14 +758,17 @@ sub on_cursor_up {
 	# No vertical navigation in column mode
 	return $self if $self->highlight_mode eq 'column';
 
+	# 1 for header row
+	my $rows = $self->data_rows;
 	my %seen;
-	ROW:
-	do {
-		my $idx = $self->highlight_row_index;
-		$idx = $self->rows - 1 if --$idx < 0;
-		$self->set_highlighted_row($idx);
-		last ROW if $seen{$idx}++;
-	} until $self->highlight_row->can_highlight;
+	ROW: {
+		do {
+			my $idx = $self->highlight_row_index;
+			$idx = $rows - 1 if --$idx < 0;
+			$self->set_highlighted_row($idx);
+			last ROW if $seen{$idx}++;
+		} until $self->highlight_row && $self->highlight_row->can_highlight;
+	}
 }
 
 =head2 on_cursor_home
@@ -759,7 +796,7 @@ sub on_cursor_end {
 	# No vertical navigation in column mode
 	return $self if $self->highlight_mode eq 'column';
 
-	$self->set_highlighted_row($self->rows - 1);
+	$self->set_highlighted_row($self->data_rows - 1);
 }
 
 =head2 on_cursor_pageup
@@ -772,7 +809,7 @@ sub on_cursor_pageup {
 	my $self = shift;
 	my $idx = $self->highlight_row_index;
 	$idx -= 10;
-	$idx += $self->rows - 1 if $idx < 0;
+	$idx = 0 if $idx < 0;
 	$self->set_highlighted_row($idx);
 }
 
@@ -788,13 +825,15 @@ sub on_cursor_down {
 	return $self if $self->highlight_mode eq 'column';
 
 	my %seen;
-	ROW:
-	do {
-		my $idx = $self->highlight_row_index;
-		$idx = 0 if ++$idx >= $self->rows;
-		$self->set_highlighted_row($idx);
-		last ROW if $seen{$idx}++;
-	} until $self->highlight_row->can_highlight;
+	my $rows = $self->children;
+	ROW: {
+		do {
+			my $idx = $self->highlight_row_index;
+			$idx = 0 if ++$idx >= $rows;
+			$self->set_highlighted_row($idx);
+			last ROW if $seen{$idx}++;
+		} until $self->highlight_row && $self->highlight_row->can_highlight;
+	}
 }
 
 =head2 on_cursor_pagedown
@@ -810,7 +849,7 @@ sub on_cursor_pagedown {
 
 	my $idx = $self->highlight_row_index;
 	$idx += 10;
-	$idx -= $self->rows - 1 if $idx >= $self->rows;
+	$idx = $self->data_rows - 1 if $idx >= $self->data_rows;
 	$self->set_highlighted_row($idx);
 }
 
@@ -916,33 +955,23 @@ sub on_highlight_changed {
 	$self->{on_highlight_changed}
 }
 
-=head2 highlight_attrs
+sub scroll_top { shift->{scroll_top} }
+sub scroll_bottom { shift->{scroll_bottom} }
 
-Accessor for pen attributes to use for highlighted cells, as a hashref.
-
-=cut
-
-sub highlight_attrs { +{ fg => 6, b => 1, bg => 4 } }
-
-=head2 normal_attrs
-
-Accessor for pen attributes to use for unhighlighted cells, as a hashref.
-
-=cut
-
-sub normal_attrs { +{ fg => 7, bg => 4, b => 0 } }
-
-=head2 reshape
-
-Called when the window has been resized. Recalculates layout.
-
-=cut
-
-sub reshape {
+sub row_visible {
 	my $self = shift;
-	warn "Reshape";
-	$self->refit;
-	$self->SUPER::reshape;
+	my $row = shift;
+	my $idx = 0;
+	my $y = 0;
+	my $h = $row->window ? $row->window->lines : $row->lines;
+	for ($self->data_rows) {
+		last if $_ eq $row;
+		$y += $_->window ? $_->window->lines : $_->lines;
+		++$idx;
+	}
+
+	return 1 if $y >= $self->scroll_top && $y <= $self->scroll_bottom;
+	return 0;
 }
 
 1;
@@ -955,4 +984,4 @@ Tom Molesworth <cpan@entitymodel.com>
 
 =head1 LICENSE
 
-Copyright Tom Molesworth 2011. Licensed under the same terms as Perl itself.
+Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.

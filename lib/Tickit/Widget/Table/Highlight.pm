@@ -1,6 +1,6 @@
 package Tickit::Widget::Table::Highlight;
 {
-  $Tickit::Widget::Table::Highlight::VERSION = '0.003';
+  $Tickit::Widget::Table::Highlight::VERSION = '0.100';
 }
 use strict;
 use warnings;
@@ -10,7 +10,7 @@ use warnings;
 
 =head1 VERSION
 
-version 0.003
+version 0.100
 Tickit::Widget::Table::Highlight - highlight functionality for
 cells, rows and columns in a table
 
@@ -34,12 +34,10 @@ Only one item can be highlighted at a time.
 sub highlighted {
 	my $self = shift;
 	if(@_) {
-		my $v = shift;
-		if($v ~~ $self->{highlighted}) {
+		my $v = shift() ? 1 : 0;
+		if($v != $self->{highlighted}) {
 			$self->{highlighted} = $v;
-		} else {
-			$self->{highlighted} = $v;
-			$self->update_style;
+			$self->update_highlight_style($v);
 		}
 		return $self;
 	}

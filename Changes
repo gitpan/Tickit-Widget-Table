@@ -1,5 +1,11 @@
 Revision history for Tickit-Widget-Table
 
+0.100     2013-08-23 23:11:47 Europe/London
+	Updates for various Tickit core API changes:
+	* Tickit::RenderBuffer support
+	* CLEAR_BEFORE_RENDER now disabled
+	* Tickit::Style support (see examples/styles.pl)
+
 0.003     2012-08-12 05:25:52 Europe/London
 	Support row and column highlighting, and provide an example implementation of a menubar
 	system which uses this. There's also a half-finished example showing a dialog box, doesn't

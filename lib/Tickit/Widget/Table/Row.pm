@@ -1,6 +1,6 @@
 package Tickit::Widget::Table::Row;
 {
-  $Tickit::Widget::Table::Row::VERSION = '0.003';
+  $Tickit::Widget::Table::Row::VERSION = '0.100';
 }
 use strict;
 use warnings;
@@ -12,7 +12,7 @@ Tickit::Widget::Table::Row - implementation of a table row
 
 =head1 VERSION
 
-version 0.003
+version 0.100
 
 =head1 DESCRIPTION
 
@@ -23,6 +23,16 @@ documentation and L<Tickit::Widget::Table/DESCRIPTION>.
 
 use Scalar::Util qw(weaken);
 use Tickit::Widget::Table::Cell;
+
+use Tickit::Style;
+
+BEGIN {
+	style_definition base =>
+		spacing => 0;
+}
+
+use constant CLEAR_BEFORE_RENDER => 0;
+use constant WIDGET_PEN_FROM_STYLE => 1;
 
 =head1 METHODS
 
@@ -55,20 +65,21 @@ sub new {
 	my $data = delete $args{data} || [];
 	my $can_highlight = delete $args{can_highlight} // 1;
 	my $self = $class->SUPER::new(%args);
+	$self->{highlighted} = 0;
 	$self->{table} = $table;
 	$self->{can_highlight} = $can_highlight;
 
 	my $cell_class = $self->cell_type;
 	foreach my $col (@$column) {
 		my $cell = $cell_class->new(
+			classes => [ $self->style_classes ],
 			table	=> $self->{table},
-			row	=> $self,
+			row     => $self,
 			column	=> $col,
 			content	=> shift(@$data),
 		);
 		$self->add($cell);
 	}
-	$self->update_style;
 	return $self;
 }
 
@@ -103,8 +114,8 @@ Get or set the selection status for this row.
 sub selected {
 	my $self = shift;
 	if(@_) {
-		my $v = shift;
-		unless($v ~~ $self->{selected}) {
+		my $v = shift() ? 1 : 0;
+		unless($v == $self->{selected}) {
 			$self->{selected} = $v;
 			$self->resized;
 		}
@@ -138,8 +149,9 @@ sub add_column {
 	my $col = shift;
 	my $cell_class = $self->cell_type;
 	my $cell = $cell_class->new(
+		classes => [ $self->style_classes ],
 		table	=> $self->{table},
-		row	=> $self,
+		row     => $self,
 		column	=> $col
 	);
 	$self->add($cell);
@@ -164,25 +176,22 @@ Move cursor to home position.
 
 =cut
 
-sub reposition_cursor {
+sub reposition_cursor { return;
 	my $self = shift;
 	my $win = $self->window or return;
 	$win->focus(0, 0);
 }
 
-=head2 update_style
+=head2 update_highlight_style
 
-Update the pen attributes based on the current highlight status.
-
-Returns $self.
+Ensure all cells are correctly updated on highlight change.
 
 =cut
 
-sub update_style {
+sub update_highlight_style {
 	my $self = shift;
-	# TODO use predefined pens or maybe allow undef for defaults, this is clearly a hack
-	$self->pen->chattrs($self->table->${\(($self->is_highlighted ? 'highlight' : 'normal') . '_attrs')});
-	$self
+	$_->update_highlight_style(@_) for $self->children;
+	$self;
 }
 
 1;
@@ -195,4 +204,4 @@ Tom Molesworth <cpan@entitymodel.com>
 
 =head1 LICENSE
 
-Copyright Tom Molesworth 2011-2012. Licensed under the same terms as Perl itself.
+Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.
