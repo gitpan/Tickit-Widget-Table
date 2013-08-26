@@ -1,5 +1,12 @@
 Revision history for Tickit-Widget-Table
 
+0.101     2013-08-26 12:03:22 Europe/London
+	Build fixes:
+	* Added cpanfile to fix missing dependencies
+
+	Functional changes:
+	* Tickit::Widget::Column empty ->render method is now ->render_to_rb for consistency
+
 0.100     2013-08-23 23:11:47 Europe/London
 	Updates for various Tickit core API changes:
 	* Tickit::RenderBuffer support

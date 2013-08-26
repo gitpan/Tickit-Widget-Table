@@ -14,33 +14,34 @@ not run its Makefile.PL or Build.PL.
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
-SHA1 a6cd5ca78d09ed0f049be737a4e7f8aae529c952 Changes
+SHA1 229be0a0073884d6ae770ef4d5ca3742a1255da4 Changes
 SHA1 fd434cf4287ad1d9b96a4b0b2e5c4da20b536d01 INSTALL
 SHA1 fcecd203a27c044eb4138dc70de012aa384a2234 LICENSE
-SHA1 dd847dc8a5de3488dfd77b12ba555ab5576085e1 MANIFEST
-SHA1 c76da060087a1c0d054e0ee7ede9600dc6a34ce2 META.json
-SHA1 4cef7a57b300a635d392aa23f6f16506c8a356b2 META.yml
-SHA1 14f0e0e293efaf3a2de229ecb75fe472ae034f76 Makefile.PL
-SHA1 68e2c40cab9ca23d639816bc63cc76b3ca812565 README
+SHA1 4c0d924c1476779efb8b62376e63355ab836ca1a MANIFEST
+SHA1 1deee10cd8500b593d00f5cdd55d17bd30cc0425 META.json
+SHA1 9cee6c6d2bb6e4f56773c114f380d1745f8d64e1 META.yml
+SHA1 db902ade72b73434be9f2e320e2716262b3fa32f Makefile.PL
+SHA1 9d7aa67ec1d497e58f5c023fc41e037aa3115195 README
+SHA1 53fa1522724af1172ad6329fc7abedfe0131e697 cpanfile
 SHA1 dd118eb590f01ba045c316f64b5f77ca84999b37 dist.ini
 SHA1 4c167dc1a92e09ca917515828d2689130fd519eb examples/dialog-demo.pl
 SHA1 03806be3bbebeec4d864f47ba36310393771ef3d examples/menu-demo.pl
 SHA1 b4030701145f4aa5dca00c3d2a5018129f61ed37 examples/scroll.pl
 SHA1 0ba2038d2bd4b3f55bbe8d7dd35d83d11fb4b04c examples/simple.pl
 SHA1 d05298dd26744d087ecc7468d2169fdbca477dcc examples/styles.pl
-SHA1 aa652fa9ce6fa6a86a2fe61fd6f452ea894b8411 lib/Tickit/Widget/Table.pm
-SHA1 4eb3d129b2bb6313c4ce1ef874a5454338a3b6d0 lib/Tickit/Widget/Table.pod
-SHA1 89a3d5a8c9ade93f083ecf43a4438b032f927328 lib/Tickit/Widget/Table/Cell.pm
-SHA1 80e888a2234f0ee467c994bd132aed351e45ff4e lib/Tickit/Widget/Table/Cell.pod
-SHA1 60b1d83d10efe43a337c902b31953a74531c7071 lib/Tickit/Widget/Table/Column.pm
-SHA1 5ee6bdb638ea84f228fb66e19f15149a17bf4ec1 lib/Tickit/Widget/Table/Column.pod
-SHA1 663eba31ab641581dad3159631ed0217e017ac89 lib/Tickit/Widget/Table/HeaderCell.pm
-SHA1 0aec3885110901aa526c7e86f502e182cc62e453 lib/Tickit/Widget/Table/HeaderCell.pod
-SHA1 88c54b333bd712dfb0774248b90ec8e46eaab3a8 lib/Tickit/Widget/Table/HeaderRow.pm
-SHA1 7328e17369a6d5a62ddef37ad796ea009c8b2761 lib/Tickit/Widget/Table/HeaderRow.pod
-SHA1 1d7b3201b9bba1773cb49eb1c643ee4dd410f21d lib/Tickit/Widget/Table/Highlight.pm
-SHA1 e79b003bcf5e2f59ad6a15823e646b23583db102 lib/Tickit/Widget/Table/Row.pm
-SHA1 95ae4acb3006e42a7ad6ed3d71b0f6b2bc4c4978 lib/Tickit/Widget/Table/Row.pod
+SHA1 db928800ded18425f3de7aad4dd8648df5ed1fee lib/Tickit/Widget/Table.pm
+SHA1 2011d6b49f3bc181465d71441d616173ae3e2023 lib/Tickit/Widget/Table.pod
+SHA1 406cfe8ac65b1aa4a629b89b0fbc88ba674bb717 lib/Tickit/Widget/Table/Cell.pm
+SHA1 a2df566d63ed9863d498ef66b148c0b9821a60a7 lib/Tickit/Widget/Table/Cell.pod
+SHA1 a2cc1dded9ee84e573c9fac77f5eda8332070664 lib/Tickit/Widget/Table/Column.pm
+SHA1 75e5113b2a74450cbaa0c3e03a0901af83b67322 lib/Tickit/Widget/Table/Column.pod
+SHA1 36ab71b55d20e792e095145a77a9fba376202b83 lib/Tickit/Widget/Table/HeaderCell.pm
+SHA1 120c41b0b7a6997db81d8cbc451c5061f6ee5689 lib/Tickit/Widget/Table/HeaderCell.pod
+SHA1 d57e7484ab85f5117a65d4df2b27e9106bf7d097 lib/Tickit/Widget/Table/HeaderRow.pm
+SHA1 929004f2a4ad006d98b1e1fc9cf236c56a4a5d56 lib/Tickit/Widget/Table/HeaderRow.pod
+SHA1 9e0b8ec8d87c5454e575cc50f16df9579c07545e lib/Tickit/Widget/Table/Highlight.pm
+SHA1 e67436d03274e026b14427a07ef70caa1425ed7c lib/Tickit/Widget/Table/Row.pm
+SHA1 b3490ab62bf13498bc96cebd7c03536e689a35fe lib/Tickit/Widget/Table/Row.pod
 SHA1 90f75289c4dda63c94bc5e897f4996b15d9e42dd t/00-check-deps.t
 SHA1 b725d8d2683630d209a67aa9aca980134b873923 t/00-compile.t
 SHA1 2124e0b4b923b792b782214a609a31e2f2bc9716 t/render.t
@@ -52,11 +53,11 @@ SHA1 bbcd59d081d9940af5d43337ae85458075933829 xt/release/test-version.t
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.12 (GNU/Linux)
 
-iQEcBAEBAgAGBQJSF94lAAoJEFKElMNpjtyD87AIAJjNk6/JINF9vA5vDoRwXfDT
-RWNlnaduxqHkwBbnHfGpyYCkuoqZP/5QAvKZuUWPeVc5O0PO6+JfZly/gA5nWwfg
-06wXdyLaEZbopz5dPY5dzI71YyNSU/pgLrlGL/3/ZrdmM/X/3tsEYeI9NDoZ4gU2
-Wi20maOiBrkFicgpax6tXKEj25rOTDo4cgdyFAjQ7mK4ZnnxCNUPxpwHus5nCdE2
-Vb6WVyFYc1FAJTE7uXhh4yAogzeS4VxUdVTM8aCBzph6BTj1Gs41p6Mp9VzNud3A
-IXWVG8GQFJCsat+q/pq9Nrbyubg3ODkE2ujy8T692mEly9LuZJyUk4YCMgeP2us=
-=bHka
+iQEcBAEBAgAGBQJSGzX8AAoJEFKElMNpjtyDD+kIAJ9amDRAKhEc6BPEB/kJnNmB
+vdkicd34zSmbE8zLguSksXGfNU2txxKrC62YqsNkGSAh4XOLakC8qfXt4dez2O0C
+2q/TofiTTCbPHjad2scZi2FRTFXcJq05fOxC7LFPRVcZegfZh2cksmDL7gd/jKs9
+CwRiXU0D7AXtVmB/AN29rkHXgk1+hObRSwKfXUtfuCAldob6hLLDoLRVez+2L5Xc
+5dpQA2xNRGmdJzTuRywsjYfRckbPHfdIr0Idg4twjpiRIiX1vnIeYo/T2DwOyGoB
+fmfw+U9LFuk+tO7/DjQ7jl2NUon1iD/fz7yvNo8jSg3NoXdtTSBvbVWabf2mqSU=
+=Swhc
 -----END PGP SIGNATURE-----

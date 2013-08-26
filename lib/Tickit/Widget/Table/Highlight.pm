@@ -1,6 +1,6 @@
 package Tickit::Widget::Table::Highlight;
 {
-  $Tickit::Widget::Table::Highlight::VERSION = '0.100';
+  $Tickit::Widget::Table::Highlight::VERSION = '0.101';
 }
 use strict;
 use warnings;
@@ -10,7 +10,7 @@ use warnings;
 
 =head1 VERSION
 
-version 0.100
+version 0.101
 Tickit::Widget::Table::Highlight - highlight functionality for
 cells, rows and columns in a table
 

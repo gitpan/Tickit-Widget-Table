@@ -1,6 +1,6 @@
 package Tickit::Widget::Table::Cell;
 {
-  $Tickit::Widget::Table::Cell::VERSION = '0.100';
+  $Tickit::Widget::Table::Cell::VERSION = '0.101';
 }
 use strict;
 use warnings;
@@ -13,7 +13,7 @@ Tickit::Widget::Table::Cell - cells in a L<Tickit::Widget::Table>.
 
 =head1 VERSION
 
-version 0.100
+version 0.101
 
 =head1 DESCRIPTION
 
@@ -135,9 +135,7 @@ sub render_to_rb {
 		my $padding = $self->table->padding;
 
 		my $pen = $self->get_style_pen;
-#		warn "Spaces: " . (-$padding + $self->cols - textwidth $txt);
 		$rb->text($txt . (' ' x (-$padding + $self->cols - textwidth $txt)), $pen);
-		# Tickit::Widget
 		$rb->erase($padding, $pen) if $padding;
 	}
 }

@@ -14,7 +14,7 @@ Tickit::Widget::Table::Column - a column in a L<Ticket::Widget::Table>
 
 =head1 VERSION
 
-version 0.100
+version 0.101
 
 =head1 DESCRIPTION
 
@@ -132,7 +132,7 @@ Does nothing at all yet has a confusingly purposeful name.
 Makes a wild guess as to how wide we should be then sets the displayed width
 accordingly.
 
-=head2 render
+=head2 render_to_rb
 
 Does nothing, for cases where we're attached to something as a real widget.
 

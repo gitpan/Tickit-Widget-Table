@@ -1,6 +1,6 @@
 package Tickit::Widget::Table::Column;
 {
-  $Tickit::Widget::Table::Column::VERSION = '0.100';
+  $Tickit::Widget::Table::Column::VERSION = '0.101';
 }
 use strict;
 use warnings;
@@ -13,7 +13,7 @@ Tickit::Widget::Table::Column - a column in a L<Ticket::Widget::Table>
 
 =head1 VERSION
 
-version 0.100
+version 0.101
 
 =head1 DESCRIPTION
 
@@ -331,13 +331,13 @@ sub autofit {
 	return $self;
 }
 
-=head2 render
+=head2 render_to_rb
 
 Does nothing, for cases where we're attached to something as a real widget.
 
 =cut
 
-sub render { my $self = shift; return; }
+sub render_to_rb { my $self = shift; return; }
 
 =head2 idx
 

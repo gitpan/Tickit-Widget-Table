@@ -1,6 +1,6 @@
 package Tickit::Widget::Table::Row;
 {
-  $Tickit::Widget::Table::Row::VERSION = '0.100';
+  $Tickit::Widget::Table::Row::VERSION = '0.101';
 }
 use strict;
 use warnings;
@@ -12,7 +12,7 @@ Tickit::Widget::Table::Row - implementation of a table row
 
 =head1 VERSION
 
-version 0.100
+version 0.101
 
 =head1 DESCRIPTION
 

@@ -20,14 +20,19 @@ my %WriteMakefileArgs = (
   "LICENSE" => "perl",
   "MIN_PERL_VERSION" => "5.010001",
   "NAME" => "Tickit::Widget::Table",
-  "PREREQ_PM" => {},
+  "PREREQ_PM" => {
+    "Mixin::Event::Dispatch" => "1.000",
+    "Tickit" => "0.33",
+    "Tickit::Widgets" => "0.10",
+    "parent" => 0
+  },
   "TEST_REQUIRES" => {
     "Capture::Tiny" => 0,
     "Test::CheckDeps" => "0.006",
-    "Test::More" => "0.94",
+    "Test::More" => "0.98",
     "blib" => 0
   },
-  "VERSION" => "0.100",
+  "VERSION" => "0.101",
   "test" => {
     "TESTS" => "t/*.t"
   }

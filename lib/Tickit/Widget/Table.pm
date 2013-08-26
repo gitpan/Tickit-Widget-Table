@@ -3,9 +3,8 @@ package Tickit::Widget::Table;
 use strict;
 use warnings;
 use parent qw(Tickit::Widget::VBox);
-# use Carp::Always;
 
-our $VERSION = '0.100';
+our $VERSION = '0.101';
 
 =head1 NAME
 
@@ -13,7 +12,7 @@ Tickit::Widget::Table - tabular widget support for L<Tickit>
 
 =head1 VERSION
 
-version 0.100
+version 0.101
 
 =head1 SYNOPSIS
 
@@ -79,6 +78,8 @@ use constant CLEAR_BEFORE_RENDER => 0;
 use constant KEYPRESSES_FROM_STYLE => 1;
 use constant WIDGET_PEN_FROM_STYLE => 1;
 use constant CAN_FOCUS => 1;
+
+use Tickit::Utils;
 
 =head1 METHODS
 
