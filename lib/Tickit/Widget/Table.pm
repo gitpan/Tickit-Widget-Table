@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use parent qw(Tickit::Widget);
 
-our $VERSION = '0.200';
+our $VERSION = '0.201';
 
 =head1 NAME
 
@@ -12,7 +12,7 @@ Tickit::Widget::Table - table widget with support for scrolling/paging
 
 =head1 VERSION
 
-Version 0.200
+Version 0.201
 
 =head1 SYNOPSIS
 
@@ -246,12 +246,13 @@ sub new {
 		cell_transformations
 		columns
 		highlight_row
+		data
 	);
 	my $self = $class->SUPER::new(@_);
 
 	# First we assign the adapter, since it might be used elsewhere
 	$attr{adapter} ||= Adapter::Async::OrderedList::Array->new(
-		data => $attr{data} || []
+		data => delete($attr{data}) || []
 	);
 	$self->on_adapter_change(delete $attr{adapter});
 
@@ -262,12 +263,14 @@ sub new {
 	# Some defaults
 	$attr{item_transformations} ||= [ ];
 	$attr{cell_transformations} ||= { };
-	$attr{columns} ||= [];
 	$attr{highlight_row} //= 0;
 
 	# Apply our attributes now
+	my @cols = @{ delete $attr{columns} || [] };
 	$self->{$_} = $attr{$_} for keys %attr;
-
+	for my $col (@cols) {
+		$self->add_column(%$col);
+	}
 	$self->take_focus;
 	$self
 }
@@ -357,6 +360,14 @@ sub add_column {
 	$args{transform} ||= [];
 	$args{transform} = [ $args{transform} ] unless ref $args{transform} eq 'ARRAY';
 	push @{$self->{columns}}, \%args;
+	return $self if $self->{distribute_pending};
+	return $self unless my $win = $self->window;
+	$self->{distribute_pending} = 1;
+	$win->term->later(sub {
+		return unless $self->{distribute_pending};
+		$self->distribute_columns;
+		delete $self->{distribute_pending};
+	});
 	$self
 }
 
@@ -730,7 +741,7 @@ sub render_body {
 		if($f->is_done) {
 			$self->render_row($rb, $rect, $idx, $f->get);
 		} elsif($f->is_ready) {
-			$self->render_failed_row($rb, $rect, $idx, $f->is_cancelled ? 'cancelled' : $f->get);
+			$self->render_failed_row($rb, $rect, $idx, $f->is_cancelled ? 'cancelled' : $f->failure);
 		} else {
 			$self->render_pending_row($rb, $rect, $idx);
 			$f->on_done($self->curry::expose_row($idx));
@@ -979,6 +990,7 @@ sub window_gained {
 	my $self = shift;
 	$self->SUPER::window_gained(@_);
 	my $win = $self->window;
+	$self->distribute_columns;
 
 	# Row cache starts as empty. We should really
 	# preserve any previous values here.

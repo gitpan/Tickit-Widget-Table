@@ -16,7 +16,7 @@ Tickit::Widget::Table - table widget with support for scrolling/paging
 
 =head1 VERSION
 
-Version 0.200
+Version 0.201
 
 =head1 SYNOPSIS
 

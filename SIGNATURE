@@ -14,23 +14,23 @@ not run its Makefile.PL or Build.PL.
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
-SHA1 fe3057992280047958d5b3a133c8a15d7a54c9bd Changes
+SHA1 bf126397cdd735f9f2fdd317aa834593ccba85e3 Changes
 SHA1 fd434cf4287ad1d9b96a4b0b2e5c4da20b536d01 INSTALL
 SHA1 509f655780fe2a934ad8515fa15921b96a6de84c LICENSE
 SHA1 bfae6ba9209c272d32052deef7f444a2ddbbab61 MANIFEST
-SHA1 29fe1d581e56d2228e3f5c96b45032aebbfd743c META.json
-SHA1 87bc56b28dbf1c6bc7f4612c0139b402361dd975 META.yml
-SHA1 2648903d587ec2dc13b89a4342cb4cbae70f0a11 Makefile.PL
-SHA1 bff0fe7440a099d6a86295b3ee8adcd4220e9acd README
+SHA1 ef65e7a8f644f19e687545646c7611f98c62f0f0 META.json
+SHA1 fe068c08c6e96a4c0bf1a95726f3f54730187d18 META.yml
+SHA1 02b61b15b42296dbc5689a6e1cc56944862de77a Makefile.PL
+SHA1 33629e0ce0b7f536a418352ab834192277fdd9cd README
 SHA1 05137adaf74fb2acfa0fbd8f515e149d6ff3b3b0 cpanfile
 SHA1 353afba113f5437b8e9a300ad8156b26e7502ded dist.ini
 SHA1 cff5657df2d72e2bd58dff2db3f33672c41b16c6 examples/adapter-array.pl
 SHA1 1e3a3ac056008f43bce86bc71f9f5be090e087e4 examples/adapter-deferred-array-styled.pl
 SHA1 802bf7d9b645b449709ba3862748d182d1dd801b examples/adapter-deferred-array.pl
 SHA1 ce4224a58486082a6b4c688dda5d587afa252d0b examples/adapter-transformed-array.pl
-SHA1 835bb68b064a421eba22973e2a3decb90c42a394 lib/Tickit/Widget/Table.pm
-SHA1 fa98ad0540f15c6ba5da4d18d0dacfece5134294 lib/Tickit/Widget/Table.pod
-SHA1 32958fd739c1dfded96f30285a1bcd77722e6c41 lib/Tickit/Widget/Table/FAQ.pod
+SHA1 44c7ad9c80a498382b886cafe8491790f22f91dd lib/Tickit/Widget/Table.pm
+SHA1 aafdf3404724bdf506c324ab8604cdd4357caf13 lib/Tickit/Widget/Table.pod
+SHA1 71d9639e8c06ce0542bca5e9fdc6df9165dcc051 lib/Tickit/Widget/Table/FAQ.pod
 SHA1 7c70c5d0eb92848ee827c54bf3f279594cef8c3e screenshots/tickit-widget-table-paged1.gif
 SHA1 985d9ded8d8ed7e344a09e52b1402e878e91da28 t/00-check-deps.t
 SHA1 0f21b0d0573d8393f845f5c805ca61ebcb2fe221 t/00-compile.t
@@ -43,11 +43,11 @@ SHA1 bbcd59d081d9940af5d43337ae85458075933829 xt/release/test-version.t
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1
 
-iQEcBAEBAgAGBQJT75hQAAoJEFKElMNpjtyDDv0H/2l5osupoRwcvhY6/HzwG8Yh
-dgfuO9JllJltGkNgy43ZKamzNILGeCliCfGvrFssIJ8Q44nrjwTZbNN3FqL8SvHZ
-ZR2GDtjcptMJpHXb3HlJ2Tul4GyK1mNH8UGvobeQQjrq6DNWAFxuJTZoguPvQEVT
-V9xpX/JFFe/hAZDDLu8je0BLW0HcKkPOc4Y0MhwO7RyqVzufe8ckpIBbMjM8oS45
-EgdjZm6Ck8NhK2Dug1BsXZMq8CEEucRmjfbFeTOrRLK2n24LG4/6AlmyT7PUoQry
-+X2I4lDVadteSA83dg3uz8BS94Iur6zArFQnxPsXwgDBLFDFPFqCiQ6OiYFpw7c=
-=0utB
+iQEcBAEBAgAGBQJT76C5AAoJEFKElMNpjtyDJlwH/A1t+4QdTauDMcbUaZofbcye
+u4Ep/CB4sd+m3Omn/Pb4aofSmh+fS2jVdMVVJU66Cz/kSzlBvkBN41BA6vuV4lQc
+QUvvmuQFw40PZFh3DJ0m328WvMnxc6jHMvTgVbAk6J6Y2PqBM+VCzj9w+yTPcHMd
+f2FoIgHGM6DKDAUU65iKL/i1++688YrKVqUu3eOsKudraIzYjt9w8T8gRiDB4xqp
+p59L4gvhZGWeSBeVpXkt0RWWXV3jNII+4JDqsmrd+GQY47WQp74e+1SZ3y1bYRHq
+hmCfcsfgsGwaJbyEAPjyIevQp4kP2HLx9Fi2u10o3WBC0IxV0TMSqKwC3Dp1UKw=
+=NR4K
 -----END PGP SIGNATURE-----

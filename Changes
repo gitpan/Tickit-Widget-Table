@@ -1,5 +1,14 @@
 Revision history for Tickit-Widget-Table
 
+0.201     2014-08-16 19:19:24+01:00 Europe/London
+	No new features.
+
+	Bugs fixed:
+	* Allow upgrading the 'data' parameter to an adapter
+	* Adding columns after instantiation now properly sanitises the values
+	and distributes the widths
+	* Failed items show as table entries rather than raising an exception
+
 0.200     2014-08-16 18:43:32+01:00 Europe/London
 	Renamed from Tickit::Widget::Table::Paged to Tickit::Widget::Table.
 	The old Tickit::Widget::Table implementation didn't work out
