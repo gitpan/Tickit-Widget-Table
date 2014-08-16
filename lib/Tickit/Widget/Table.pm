@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use parent qw(Tickit::Widget);
 
-our $VERSION = '0.201';
+our $VERSION = '0.202';
 
 =head1 NAME
 
@@ -12,7 +12,7 @@ Tickit::Widget::Table - table widget with support for scrolling/paging
 
 =head1 VERSION
 
-Version 0.201
+Version 0.202
 
 =head1 SYNOPSIS
 
@@ -1376,7 +1376,8 @@ sub key_activate {
 		my $f; $f = $self->adapter->get(
 			items => \@selected,
 		)->then(sub {
-			$code->(\@selected, shift)
+			my $ret = $code->(\@selected, shift);
+			return blessed($ret) && $ret->isa('Future') ? $ret : Future->wrap($ret)
 		})->on_ready(sub { undef $f });
 	}
 	$self

@@ -1,5 +1,11 @@
 Revision history for Tickit-Widget-Table
 
+0.202     2014-08-16 19:25:44+01:00 Europe/London
+	No new features.
+
+	Bugs fixed:
+	* Support activation callbacks which don't return a Future
+
 0.201     2014-08-16 19:19:24+01:00 Europe/London
 	No new features.
 
