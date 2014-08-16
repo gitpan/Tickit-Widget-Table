@@ -1,5 +1,13 @@
 Revision history for Tickit-Widget-Table
 
+0.203     2014-08-16 19:47:09+01:00 Europe/London
+	No new features.
+
+	Documentation:
+	* Fixed self-ref in the SEE ALSO section
+	* Updated screenshot
+	* Mention Term::TablePrint, which also seems to have been updated today
+
 0.202     2014-08-16 19:25:44+01:00 Europe/London
 	No new features.
 

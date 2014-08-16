@@ -18,6 +18,7 @@ lib/Tickit/Widget/Table.pm
 lib/Tickit/Widget/Table.pod
 lib/Tickit/Widget/Table/FAQ.pod
 screenshots/tickit-widget-table-paged1.gif
+screenshots/tickit-widget-table-paged2.gif
 t/00-check-deps.t
 t/00-compile.t
 t/000-report-versions-tiny.t

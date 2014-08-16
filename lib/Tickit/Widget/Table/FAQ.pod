@@ -6,7 +6,7 @@ Tickit::Widget::Table::FAQ - some suggestions for using L<Tickit::Widget::Table>
 
 =head1 VERSION
 
-Version 0.202
+Version 0.203
 
 =head1 DESCRIPTION
 

@@ -16,7 +16,7 @@ Tickit::Widget::Table - table widget with support for scrolling/paging
 
 =head1 VERSION
 
-Version 0.202
+Version 0.203
 
 =head1 SYNOPSIS
 
@@ -43,7 +43,10 @@ please get in contact if you're using this, or wait for version 1.000.
 
 =begin HTML
 
+<p>Basic rendering:</p>
 <p><img src="http://tickit.perlsite.co.uk/cpan-screenshot/tickit-widget-table-paged1.gif" alt="Paged table widget in action" width="430" height="306"></p>
+<p>Adapter updating dynamically, styled columns, deferred loadig:</p>
+<p><img src="http://tickit.perlsite.co.uk/cpan-screenshot/tickit-widget-table-paged2.gif" alt="Paged table widget in action" width="539" height="315"></p>
 
 =end HTML
 
@@ -536,10 +539,12 @@ Other tables and table-like things:
 
 =over 4
 
-=item * L<Tickit::Widget::Table> - older table implementation based on L<Tickit::Widget::HBox> and L<Tickit::Widget::VBox>
-widgets. Does not support scrolling and performance isn't as good, so it will eventually be merged with this one.
+=item * L<Tickit::Widget::Table::Paged> - earlier version of this module without adapter support
 
 =item * L<Text::ANSITable> - not part of L<Tickit> but has some impressive styling capabilities.
+
+=item * L<Term::TablePrint> - again, not part of L<Tickit> but provides an interactive table
+via direct terminal access.
 
 =back
 
@@ -550,6 +555,8 @@ And these are probably important background reading for formatting and data sour
 =item * L<String::Tagged> - supported for applying custom formatting (specifically, pen attributes)
 
 =item * L<Adapter::Async> - API for dealing with abstract data sources
+
+=item * L<Adapter::Async::OrderedList> - subclass of the above for our tabular layout API
 
 =back
 
