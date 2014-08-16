@@ -1,363 +1,597 @@
 package Tickit::Widget::Table;
-# ABSTRACT: Table widget
+# ABSTRACT: a table widget for larger datasets
 use strict;
 use warnings;
-use parent qw(Tickit::Widget::VBox);
+use parent qw(Tickit::Widget);
 
-our $VERSION = '0.101';
+our $VERSION = '0.200';
 
 =head1 NAME
 
-Tickit::Widget::Table - tabular widget support for L<Tickit>
+Tickit::Widget::Table - table widget with support for scrolling/paging
 
 =head1 VERSION
 
-version 0.101
+Version 0.200
 
 =head1 SYNOPSIS
 
- use Tickit::Widget::HBox;
+ use Tickit;
  use Tickit::Widget::Table;
- # Create the widget
- my $table = Tickit::Widget::Table->new(
-   padding => 1,
-   columns => [
-     { label => 'First column', align => 'center', width => 'auto' },
-     { label => 'Second column', align => 'right', width => 'auto' },
-   ],
+
+ my $tbl = Tickit::Widget::Table->new;
+ $tbl->add_column(
+ 	label => 'Left',
+ 	align => 'left',
+ 	width => 8,
  );
- $table->add_row(
-   data => [
-     'First entry',
-     'Second column',
-   ]
+ $tbl->add_column(
+ 	label => 'Second column',
+ 	align => 'centre'
  );
- $table->add_row(
-   data => [
-     'Second entry',
-     'More data',
-   ]
- );
- # Put it in something
- my $container = Tickit::Widget::HBox->new;
- $container->add($table, expand => 1);
+ $tbl->add_row('left', 'middle') for 1..100;
+ Tickit->new(root => $tbl)->run;
 
 =head1 DESCRIPTION
 
-Basic support for table widgets. See examples/ in the main distribution for usage
-instructions.
+B<WARNING>: This is a preview release. API is subject to change in future,
+please get in contact if you're using this, or wait for version 1.000.
 
-=head2 Highlight mode
+=begin HTML
+
+<p><img src="http://tickit.perlsite.co.uk/cpan-screenshot/tickit-widget-table-paged1.gif" alt="Paged table widget in action" width="430" height="306"></p>
+
+=end HTML
+
+This widget provides a scrollable table implementation for use on larger data
+sets. Rather than populating the table with values, you provide an adapter
+which implements the C<count> and C<get> methods, and the table widget will
+query the adapter for the current "page" of values.
+
+This abstraction should allow access to larger datasets than would fit in
+available memory, such as a database table or procedurally-generated data.
+
+See L<Adapter::Async::OrderedList::Array> if your data is stored in a Perl
+array. Other subclasses may be available if you have a different source.
+
+=head2 Transformations
+
+Apply to:
 
 =over 4
 
-=item * none - no highlight support
+=item * Row
 
-=item * row - up/down keys move highlight between rows
+=item * Column
 
-=item * column - left/right keys select the currently highlighted column
-
-=item * cell - individual cells can be highlighted
+=item * Cell
 
 =back
 
+=head3 Item transformations
+
+This takes the original data item for the row, and returns one of the following:
+
+=over 4
+
+=item * Future - when resolved, the items will be used as cells
+
+=item * Arrayref - holds the cells directly
+
+=back
+
+The data item can be anything - an array-backed adapter would return an arrayref, ORM will give you an object for basic collections.
+
+Any number of cells may be returned from a row transformation, but you may get odd results if the cell count is not consistent.
+
+An array adapter needs no row transformation, due to the arrayref behaviour. You could provide a Future alternative:
+
+ $row->apply_transformation(sub {
+  my ($item) = @_;
+  Future->wrap(
+   @$item
+  )
+ });
+
+For the ORM example, something like this:
+
+ $row->apply_transformation(sub {
+  my ($item) = @_;
+  Future->wrap(
+   map $item->$_, qw(id name created)
+  )
+ });
+
+=head3 Column transformations
+
+Column transformations are used to apply styles and formats.
+
+You get an input value, and return either a string or a Future.
+
+Example date+colour transformation on column:
+
+ $col->apply_transformation(sub {
+  my $v = shift;
+  Future->wrap(
+   String::Tagged->new(strftime '%Y-%m-%d', $v)
+   ->apply_tag(0, 4, b => 1)
+   ->apply_tag(5, 1, fg => 8)
+   ->apply_tag(6, 2, fg => 4)
+   ->apply_tag(9, 1, fg => 8)
+  );
+ });
+
+=head3 Cell transformations
+
+Cell transformations are for cases where you need fine control over individual components. They operate similarly to column transformations,
+taking the input value and returning either a string or a Future.
+
+Typical example would be a spreadsheet:
+
+ $cell->apply_transformation(sub {
+  my $v = shift;
+  return $v unless blessed $v;
+  return eval $v if $v->is_formula;
+  return $v->to_string if $v->is_formatted;
+  return "$v"
+ });
+
+=head3 View transformations
+
+This happen every time the row is rendered. They provide the ability to do view-specific modification,
+such as replacing long strings with an elided version ("Some lengthy messa...")
+
 =cut
 
-use List::Util qw(min max sum);
-use Scalar::Util qw(weaken);
-
+use Tickit::RenderBuffer qw(LINE_SINGLE LINE_DOUBLE CAP_BOTH);
+use Tickit::Utils qw(distribute substrwidth align textwidth chars2cols);
+use String::Tagged;
+use Future::Utils qw(fmap_void repeat);
+use Tickit::Style;
+use Scalar::Util qw(looks_like_number blessed);
 use POSIX qw(floor);
 
-use Tickit::Widget::Table::HeaderRow;
-use Tickit::Widget::Table::Cell;
-use Tickit::Widget::Table::Column;
-use Tickit::Widget::Table::Row;
+use Adapter::Async::OrderedList;
+use Adapter::Async::OrderedList::Array;
 
-# See Tickit::Widget docs for these
 use constant CLEAR_BEFORE_RENDER => 0;
 use constant KEYPRESSES_FROM_STYLE => 1;
-use constant WIDGET_PEN_FROM_STYLE => 1;
 use constant CAN_FOCUS => 1;
 
-use Tickit::Utils;
+BEGIN {
+	style_definition 'base' =>
+		cell_padding         => 1,
+		fg                   => 'white',
+		highlight_b          => 1,
+		highlight_fg         => 'yellow',
+		highlight_bg         => 'blue',
+		selected_b           => 1,
+		selected_fg          => 'white',
+		selected_bg          => 'red',
+		header_b             => 1,
+		header_fg            => 'blue',
+		scrollbar_fg         => 'white',
+		scrollbar_bg         => 'black',
+		scrollbar_line_style => 'none',
+		scroll_b             => 1,
+		scroll_fg            => 'white',
+		scroll_bg            => 'black',
+#		scroll_line_style    => 'block';
+# Technically we should ignore any keyboard input if we don't have focus,
+# but other widgets don't currently do this and things seem to work without
+# it anyway.
+#	style_definition ':focus' =>
+		'<Up>'               => 'previous_row',
+		'<Down>'             => 'next_row',
+		'<PageUp>'           => 'previous_page',
+		'<PageDown>'         => 'next_page',
+		'<Home>'             => 'first_row',
+		'<End>'              => 'last_row',
+		'<Left>'             => 'previous_column',
+		'<Right>'            => 'next_column',
+		'<Space>'            => 'select_toggle',
+		'<Enter>'            => 'activate';
+}
+
+# Allow more descriptive terms for column alignment - these
+# map to the values allowed by the Tickit::Utils::align series
+# of functions.
+my %ALIGNMENT_TYPE = (
+	left   => 0,
+	right  => 1,
+	centre => 0.5,
+	center => 0.5,
+	middle => 0.5,
+);
 
 =head1 METHODS
 
+=cut
+
 =head2 new
 
-Create a new table widget.
+Instantiate. Will attempt to take focus.
 
 Takes the following named parameters:
 
 =over 4
 
-=item * columns - column definition arrayref, see L</add_column> for the details
+=item * on_activate - coderef to call when the user hits the Enter key,
+will be passed the highlighted row or selection when in C<multi_select> mode,
+see L</on_activate> for more details.
 
-=item * padding - amount of padding (in chars) to apply between columns
+=item * multi_select - when set, the widget will allow selection of multiple
+rows (typically by pressing Space to toggle a given row)
 
-=item * default_action - coderef to execute when a cell/row/column
-is activated, unless there is an action defined on that item already
+=item * adapter - an L<Adapter::Async::OrderedList::Array> instance
 
-=item * header - flag to select whether a header is shown. If not provided it is
-assumed that a header is wanted.
-
-=item * highlight_mode - one of row (default), column, cell, defines how navigation
-and selection work
+=item * data - alternative to passing an adapter, if you want to wrap an existing
+array without creating an L<Adapter::Async::OrderedList> subclass yourself
 
 =back
+
+Returns a new instance.
 
 =cut
 
 sub new {
 	my $class = shift;
 	my %args = @_;
-	my $columns = delete $args{columns};
-	my $padding = delete $args{padding} // 0;
-	my $header = exists $args{header} ? delete $args{header} : 1;
-	my $default_action = delete $args{default_action};
-	my $highlight_mode = delete $args{highlight_mode} // 'row';
-	my $self = $class->SUPER::new(%args);
-	$self->{highlight_mode} = $highlight_mode;
-	$self->{columns} = [];
-	$self->{padding} = $padding;
-	$self->{default_action} = $default_action;
-
-	$self->add_initial_columns($columns);
-	$self->add_header_row($header) if $header;
-	$self->take_focus;
-	return $self;
-}
-
-=head2 add_header_row
-
-Adds a header row to the top of the table. Takes no parameters.
-
-=cut
-
-sub add_header_row {
-	my $self = shift;
-	return if $self->{header_row};
-
-	my $header_row = Tickit::Widget::Table::HeaderRow->new(
-		classes => [ $self->style_classes ],
-		table	=> $self,
-		column	=> [ $self->column_list ]
+	my %attr;
+	$attr{$_} = delete $args{$_} for qw(
+		on_activate
+		multi_select
+		adapter
+		item_transformations
+		cell_transformations
+		columns
+		highlight_row
 	);
-	$self->add($header_row);
-	$self->{header_row} = $header_row;
-	my $idx = 0;
-	$_->add_header_cell($header_row->cell($idx++)) for $self->column_list;
-	return $self;
-}
+	my $self = $class->SUPER::new(@_);
 
-=head2 add_initial_columns
+	# First we assign the adapter, since it might be used elsewhere
+	$attr{adapter} ||= Adapter::Async::OrderedList::Array->new(
+		data => $attr{data} || []
+	);
+	$self->on_adapter_change(delete $attr{adapter});
 
-Populates initial columns from the given arrayref. Generally handled
-internally when passing C< columns > in the constructor.
+	# Special-case parameters which need method calls
+	$self->on_activate(delete $attr{on_activate}) if $attr{on_activate};
+	$self->multi_select(delete $attr{multi_select} || 0);
 
-=cut
+	# Some defaults
+	$attr{item_transformations} ||= [ ];
+	$attr{cell_transformations} ||= { };
+	$attr{columns} ||= [];
+	$attr{highlight_row} //= 0;
 
-sub add_initial_columns {
-	my $self = shift;
-	my $columns = shift;
-	$self->add_column(
-		%$_,
-		refit_later => 1,
-	) for @{$columns // []};
-}
+	# Apply our attributes now
+	$self->{$_} = $attr{$_} for keys %attr;
 
-=head2 padding
-
-Returns amount of padding between cells
-
-=cut
-
-sub padding { shift->{padding} }
-
-=head2 lines
-
-Number of rows.
-
-=cut
-
-sub lines { scalar(shift->children) }
-
-=head2 cols
-
-Number of screen columns.
-
-=cut
-
-sub cols {
-	my $self = shift;
-	my $w = sum map $_->cols, $self->column_list;
-	return $w || 1;
-}
-
-=head2 rows
-
-'rows' are the number of data rows we have in the table. That's one less
-than the total number of rows if we have a header row
-
-=cut
-
-sub rows {
-	my $self = shift;
-	my $count = scalar($self->children);
-	--$count if $self->{header_row};
-	return $count
-}
-
-=head2 columns
-
-Number of columns in the table.
-
-=cut
-
-sub columns { scalar(shift->column_list) }
-
-=head2 data_rows
-
-Returns the rows containing data - this excludes the header row if there is
-one.
-
-=cut
-
-sub data_rows {
-	my $self = shift;
-	my @children = $self->children;
-	# Ignore the first if we have a header
-	shift @children if $self->header_row;
-	return @children;
-}
-
-=head2 reposition_cursor
-
-Put the cursor in the right place. Possibly used internally, probably of
-dubious utility.
-
-=cut
-
-sub reposition_cursor { return;
-	my $self = shift;
-	$self->{on_highlight_changed}->($self) if $self->{on_highlight_changed};
+	$self->take_focus;
 	$self
 }
 
-=head2 header_row
+sub adapter { shift->{adapter} }
 
-Returns the header row if there is one.
+=head2 bus
+
+Bus for event handling. Normally an L<Adapter::Async::Bus> instance
+shared by the adapter.
 
 =cut
 
-sub header_row {
+sub bus { $_[0]->{bus} ||= $_[0]->adapter->bus }
+
+=head1 METHODS - Table content
+
+=head2 clear
+
+Clear all data in the table.
+
+=cut
+
+sub clear {
 	my $self = shift;
-	$self->{header_row}
+	# Let our event handler take care of any required cleanup here
+	$self->adapter->clear;
+	$self
 }
 
-=head2 set_highlighted_row
+=head2 expose_row
 
-Highlight a row in the table. Only one row can be highlighted at a time,
-as opposed to selected rows.
+Expose the given row (provided as an index into the underlying storage).
+
+ $tbl->expose_row(14);
 
 =cut
 
-sub set_highlighted_row {
-	my $self = shift;
-	my $id = shift;
-
-	delete $self->{highlight_row};
-	delete $self->{highlight_row_index};
-
-	my $idx = 0;
-	foreach my $row ($self->data_rows) {
-		if($id == $idx) {
-			my $redraw = !$row->is_highlighted;
-			$row->highlighted(1);
-			$self->{highlight_row_index} = $id;
-			$self->{highlight_row} = $row;
-			$row->redraw if $redraw;
-		} else {
-			my $redraw = $row->is_highlighted;
-			$row->highlighted(0);
-			$row->redraw if $redraw;
-		}
-		++$idx;
+sub expose_row {
+	my ($self, $idx) = @_;
+	if(my $win = $self->window) {
+		my $row = $self->row_from_idx($idx);
+		return $self unless $row >= 0;
+		my $rect = Tickit::Rect->new(
+			top   => $row,
+			left  => 0,
+			lines => 1,
+			cols  => $win->cols
+		)->intersect($self->body_rect);
+		$win->expose($rect) if $rect;
 	}
-	$self->reposition_cursor;
 	return $self;
 }
 
-=head2 set_highlighted_column
+=head2 add_column
 
-Highlight a row in the table. Only one row can be highlighted at a time,
-as opposed to selected rows.
+Add a new column. Takes the following named parameters:
+
+=over 4
+
+=item * width - (optional) number of columns
+
+=item * type - (optional) data type, currently only supports 'text' (the default)
+
+=item * align - (optional) align left, center or right
+
+=item * transform - (optional) list of transformations to apply
+
+=item * visible - (optional) true if this column should be shown
+
+=back
+
+Returns $self.
 
 =cut
 
-sub set_highlighted_column {
+sub add_column {
 	my $self = shift;
-	my $id = shift;
-
-	delete $self->{highlight_column};
-	delete $self->{highlight_column_index};
-
-	my $idx = 0;
-	foreach my $col ($self->column_list) {
-		if($id == $idx) {
-			my $redraw = !$col->is_highlighted;
-			$col->highlighted(1);
-			$self->{highlight_column_index} = $id;
-			$self->{highlight_column} = $col;
-			$col->redraw if $redraw;
-		} else {
-			my $redraw = $col->is_highlighted;
-			$col->highlighted(0);
-			$col->redraw if $redraw;
-		}
-		++$idx;
-	}
-	$self->reposition_cursor;
-	return $self;
+	my %args = @_;
+	# delete $args{width} if $args{width} eq 'auto';
+	@args{qw(base expand)} = (0,1) unless exists $args{width};
+	$args{fixed} = delete $args{width} if looks_like_number($args{width});
+	$args{type} ||= 'text';
+	$args{align} = $ALIGNMENT_TYPE{$args{align}} if defined($args{align}) && exists $ALIGNMENT_TYPE{$args{align}};
+	$args{align} ||= 0;
+	$args{visible} //= 1;
+	$args{transform} ||= [];
+	$args{transform} = [ $args{transform} ] unless ref $args{transform} eq 'ARRAY';
+	push @{$self->{columns}}, \%args;
+	$self
 }
 
-=head2 set_highlighted_cell
+=head2 selected_rows
 
-Highlight a cell in the table. Only one cell can be highlighted at a time,
-as opposed to selected rows.
+Returns the selected row, or multiple rows as a list if multi_select is enabled.
+If multi_select is enabled it does not return the row currently highlighted (unless that row is also selected).
 
 =cut
 
-sub set_highlighted_cell {
+sub selected_rows {
 	my $self = shift;
-	my $id = shift;
 
-	delete $self->{highlight_column};
-	delete $self->{highlight_column_index};
-
-	my $idx = 0;
-	foreach my $col ($self->column_list) {
-		if($id == $idx) {
-			my $redraw = !$col->is_highlighted;
-			$col->highlighted(1);
-			$self->{highlight_column_index} = $id;
-			$self->{highlight_column} = $col;
-			$col->redraw if $redraw;
-		} else {
-			my $redraw = $col->is_highlighted;
-			$col->highlighted(0);
-			$col->redraw if $redraw;
-		}
-		++$idx;
+	if($self->multi_select) {
+		my @selected = sort { $a <=> $b } grep $self->{selected}{$_}, keys %{$self->{selected}};
+		return @{$self->data}[@selected];
+	} else {
+		my $idx = $self->highlight_row;
+		return $self->data->[$idx];
 	}
-	$self->reposition_cursor;
-	return $self;
+}
+
+=head1 METHODS - Callbacks
+
+=head2 on_activate
+
+Accessor for the activation callback - if called without parameters,
+will return the current coderef (if any), otherwise, will set the new
+callback.
+
+This callback will be triggered via L</key_activate>:
+
+ $code->($row_index, $row_data_as_arrayref)
+
+If multiselect is enabled, the callback will have the following:
+
+ $code->(
+   [$highlight_row_index, @selected_row_indices],
+   $highlight_row_data_as_arrayref,
+   @selected_rows_as_arrayrefs
+ )
+
+(the selected row data + index list could be empty here)
+
+=cut
+
+sub on_activate {
+	my $self = shift;
+	if(@_) {
+		$self->{on_activate} = shift;
+		return $self;
+	}
+	return $self->{on_activate}
+}
+
+=head2 multi_select
+
+Accessor for multi_select mode - when set, this allows multiple rows
+to be selected.
+
+=cut
+
+sub multi_select {
+	my $self = shift;
+	if(@_) {
+		$self->{multi_select} = shift;
+		return $self;
+	}
+	return $self->{multi_select} ? 1 : 0
+}
+
+=head1 METHODS - Other
+
+=head2 lines
+
+Number of lines to request.
+
+=cut
+
+sub lines { 1 }
+
+=head2 cols
+
+Number of columns to request.
+
+=cut
+
+sub cols { 1 }
+
+=head2 vscroll
+
+True if there's a vertical scrollbar (currently there is no way to
+disable this scrollbar).
+
+=cut
+
+sub vscroll { 1 }
+
+=head2 hscroll
+
+True if there's a horizontal scrollbar. There isn't one, this always
+returns false.
+
+=cut
+
+sub hscroll { 0 }
+
+=head2 row_offset
+
+Current row offset (vertical scroll position).
+
+=cut
+
+sub row_offset { shift->{row_offset} //= 0 }
+
+=head2 header_rect
+
+Returns the L<Tickit::Rect> representing the header area.
+
+=cut
+
+sub header_rect {
+	my $self = shift;
+	$self->{header_rect} ||= Tickit::Rect->new(
+		top   => 0,
+		lines => $self->header_lines,
+		left  => 0,
+		cols  => $self->window->cols
+	);
+}
+
+=head2 body_rect
+
+Returns the L<Tickit::Rect> representing the body area.
+
+=cut
+
+sub body_rect {
+	my $self = shift;
+	$self->{body_rect} ||= Tickit::Rect->new(
+		top   => 1,
+		lines => $self->window->lines - 1,
+		left  => 0,
+		cols  => $self->window->cols - 1
+	);
+}
+
+=head2 scrollbar_rect
+
+Returns the L<Tickit::Rect> representing the scroll bar.
+
+=cut
+
+sub scrollbar_rect {
+	my $self = shift;
+	$self->{scrollbar_rect} ||= Tickit::Rect->new(
+		top   => 1,
+		lines => $self->window->lines - 1,
+		left  => $self->window->cols - 1,
+		cols  => 1,
+	);
+}
+
+=head2 header_lines
+
+Returns the number of lines in the header. Hardcoded to 1.
+
+=cut
+
+sub header_lines { 1 }
+
+=head2 body_lines
+
+Returns the number of lines in the body.
+
+=cut
+
+sub body_lines { $_[0]->window->lines - $_[0]->header_lines }
+
+=head2 body_cols
+
+Returns the number of columns in the body.
+
+=cut
+
+sub body_cols { $_[0]->window->cols - 1 }
+
+=head2 idx_from_row
+
+Returns a storage index from a body row index.
+
+=cut
+
+sub idx_from_row {
+	my ($self, $row) = @_;
+	return $self->row_offset + $row - $self->header_lines;
+}
+
+=head2 row_from_idx
+
+Returns a body row index from a storage index.
+
+=cut
+
+sub row_from_idx {
+	my ($self, $idx) = @_;
+	return $self->header_lines + $idx - $self->row_offset;
+}
+
+=head2 row_cache_idx
+
+Returns a row cache offset from a storage index.
+
+=cut
+
+sub row_cache_idx {
+	my ($self, $idx) = @_;
+	die "no window yet" unless $self->window;
+	return $self->body_lines + $idx - $self->row_offset;
+}
+
+=head2 idx_from_row_cache
+
+Returns a storage index from a row cache offset.
+
+=cut
+
+sub idx_from_row_cache {
+	my ($self, $row) = @_;
+	return $row + $self->row_offset - $self->body_lines;
 }
 
 =head2 highlight_row
 
-Returns currently-highlighted row, if we have one.
-In cell mode, returns the row corresponding to current cell highlight.
+Returns the index of the currently-highlighted row.
 
 =cut
 
@@ -366,623 +600,936 @@ sub highlight_row {
 	return $self->{highlight_row};
 }
 
-=head2 highlight_column
+=head2 highlight_visible_row
 
-Returns currently-highlighted column, if we have one.
-In cell mode, returns the column corresponding to current cell highlight.
+Returns the position of the highlighted row taking scrollbar into account.
 
 =cut
 
-sub highlight_column {
+sub highlight_visible_row {
 	my $self = shift;
-	return $self->{highlight_column};
+	return $self->{highlight_row} - $self->row_offset;
 }
 
-=head2 highlight_cell
+sub loading_message { 'Loading...' }
+
+=head1 METHODS - Rendering
+
+=head2 render_to_rb
+
+Render the table. Called from expose events.
 
 =cut
 
-sub highlight_cell {
-	my $self = shift;
-	return $self->{highlight_cell};
+sub render_to_rb {
+	my ($self, $rb, $rect) = @_;
+	my $win = $self->window;
+	$self->{highlight_row} ||= 0;
+
+	$self->render_header($rb, $rect);
+	$self->render_body($rb, $rect);
+	$self->render_scrollbar($rb, $rect) if $self->vscroll;
+	my $highlight_pos = 1 + $self->highlight_visible_row;
+	$win->cursor_at($highlight_pos, 0);
 }
 
-=head2 highlighted_item
+=head2 render_header
+
+Render the header area.
 
 =cut
 
-sub highlighted_item {
-	my $self = shift;
-	my $type = $self->highlight_mode;
-	$self->{'highlight_' . $type}
+sub render_header {
+	my ($self, $rb, $rect) = @_;
+
+	$rect = $rect->intersect($self->header_rect)
+		or return $self;
+
+	$rb->goto(0, 0);
+	for my $col (0..$#{$self->{columns}}) {
+		my $def = $self->{columns}[$col];
+		$self->render_header_cell($rb, $def);
+	}
+	$rb->erase_to($self->window->cols, $self->get_style_pen('padding'));
 }
 
-=head2 highlight_row_index
+=head2 render_header_cell
 
-Index of the currently-highlighted row.
-
-=cut
-
-sub highlight_row_index { shift->{highlight_row_index} }
-
-=head2 highlight_column_index
-
-Index of the currently-highlighted column.
+Render a specific header cell.
 
 =cut
 
-sub highlight_column_index { shift->{highlight_column_index} }
+sub render_header_cell {
+	my ($self, $rb, $def) = @_;
+	my $base_pen = $self->get_style_pen(
+		'header'
+	);
+	$rb->erase_to($def->{start}, $base_pen);
+	my ($pre, undef, $post) = align textwidth($def->{label} // ''), $def->{value}, $def->{align};
+	$rb->erase($pre, $base_pen) if $pre;
+	$rb->text($def->{label} // '', $base_pen);
+	$rb->erase($post, $base_pen) if $post;
+}
 
-=head2 refit
+=head2 render_scrollbar
 
-Check current widths and apply width on columns we already have sufficient information for.
+Render the scrollbar.
 
 =cut
 
-sub refit {
-	my $self = shift;
-	return unless $self->window;
+sub render_scrollbar {
+	my ($self, $rb, $rect) = @_;
+	return $self unless my $win = $self->window;
 
-	# Horizontal total for existing columns
-	my $htotal = 0;
+	$rect = $rect->intersect($self->scrollbar_rect)
+		or return $self;
 
-	my @auto;
-	COL:
-	foreach my $col ($self->column_list) {
-		my $w = $self->get_column_width($col);
-		unless(defined $w) {
-			push @auto, $col;
-			next COL;
+	my $cols = $win->cols - 1;
+	my $h = $win->lines - 1;
+
+	# Need to clear any line content first, since we may be overwriting part of
+	# the previous scrollbar rendering here
+	$rb->eraserect(
+		Tickit::Rect->new(
+			top => 1,
+			left => $cols,
+			right => $cols,
+			bottom => $h,
+		)
+	);
+	if(my ($min, $max) = map 1 + $_, $self->scroll_rows) {
+		# Scrollbar should be shown, since we don't have all rows visible on the screen at once
+		$rb->vline_at(1, $min - 1, $cols, LINE_SINGLE, $self->get_style_pen('scrollbar'), CAP_BOTH) if $min > 1;
+		$rb->vline_at($min, $max, $cols, LINE_DOUBLE, $self->get_style_pen('scroll'), CAP_BOTH);
+		$rb->vline_at($max + 1, $h, $cols, LINE_SINGLE, $self->get_style_pen('scrollbar'), CAP_BOTH) if $max < $h;
+	} else {
+		# Placeholder scrollbar - just render it as empty
+		$rb->vline_at(1, $h, $cols, LINE_SINGLE, $self->get_style_pen('scrollbar'), CAP_BOTH);
+	}
+}
+
+=head2 render_body
+
+Render the table body.
+
+=cut
+
+sub render_body {
+	my ($self, $rb, $rect) = @_;
+	return $self unless my $win = $self->window;
+
+	# Make sure we only step through the parts of
+	# the expose event that relate to the body
+	# area
+	$rect = $rect->intersect($self->body_rect)
+		or return $self;
+
+	for my $line ($rect->linerange) {
+		my $idx = $self->idx_from_row($line);
+		my $f = $self->row_cache($idx);
+		if($f->is_done) {
+			$self->render_row($rb, $rect, $idx, $f->get);
+		} elsif($f->is_ready) {
+			$self->render_failed_row($rb, $rect, $idx, $f->is_cancelled ? 'cancelled' : $f->get);
+		} else {
+			$self->render_pending_row($rb, $rect, $idx);
+			$f->on_done($self->curry::expose_row($idx));
 		}
-
-		$w ||= 1;
-		$col->set_displayed_width($w);
-		$htotal += $w;
 	}
-	unless(@auto) {
-		$self->resized;
-		return $self;
-	}
-
-	my $remaining = $self->window->cols - $htotal;
-	my $per_column = $remaining / @auto;
-	foreach my $col (@auto) {
-		my $w = floor min $remaining, $per_column;
-		$col->set_displayed_width($w);
-		$remaining -= $w;
-	}
-	$self->resized;
-	return $self;
 }
 
-=head2 min_refit
+=head2 render_row
 
-Try to shrink columns down to minimum possible width if they're
-flexible. Typically used by L</add_column> to allow the new
-column to fit properly.
+Renders a given row, using storage index.
 
 =cut
 
-sub min_refit {
-	my $self = shift;
-	return unless $self->window;
+sub render_row {
+	my ($self, $rb, $rect, $row, $data) = @_;
 
-	$_->set_displayed_width(1) for grep defined $self->get_column_width($_), $self->column_list;
-	return $self;
-}
-
-=head2 get_column_width
-
-Return the width for the given column, or undef if this
-column should be autosized.
-
-=cut
-
-sub get_column_width {
-	my ($self, $col) = @_;
-	if($col->width_type eq 'fixed') {
-		return $col->width;	
-	} elsif($col->width_type eq 'min') {
-		return 1 + max map $_->display_width, $col->cells;
-	} elsif($col->width_type eq 'ratio') {
-		return $self->window->cols * $col->width_ratio;
+	my $line = $self->row_from_idx($row);
+	my $base_pen = $self->get_style_pen(
+		($row == $self->highlight_row)
+		? 'highlight'
+		: ($self->multi_select && $self->{selected}{$line + $self->row_offset - 1})
+		? 'selected'
+		: undef
+	);
+	for my $col (0..$#$data) {
+		my $v = $self->apply_view_transformations($row, $col, $data->[$col]);
+		my $def = $self->{columns}[$col];
+		$rb->goto($line, $def->{start});
+		my ($pre, undef, $post) = align textwidth($v), $def->{value}, $def->{align};
+		$rb->erase($pre, $base_pen) if $pre;
+		if(blessed($v) && $v->isa('String::Tagged')) {
+			# Copy before modifying, might be overkill?
+			my $st = String::Tagged->new($v);
+			$st->merge_tags(sub {
+				my ($k, $left, $right) = @_;
+				return $left eq $right;
+			});
+			$st->iter_substr_nooverlap(sub {
+				my ($substr, %tags) = @_;
+				my $pen = Tickit::Pen::Immutable->new(
+					$base_pen->getattrs,
+					%tags
+				);
+				$rb->text($substr, $pen);
+			});
+		} else {
+			$rb->text($v, $base_pen);
+		}
+		$rb->erase($post, $base_pen) if $post;
 	}
-	return undef;
 }
 
-=head2 column_list
+sub render_failed_row {
+	my ($self, $rb, $rect, $row, $failure) = @_;
 
-Returns all columns for this table as a list.
-
-=cut
-
-sub column_list {
-	my $self = shift;
-	return @{ $self->{columns} };
-}
-
-=head2 add_column
-
-Add a new column to the table, returning a
-L<Tickit::Widget::Table::Column> instance.
-
-=cut
-
-sub add_column {
-	my $self = shift;
-	my %args = @_;
-
-# HAX Crush everything down to minimum possible size first
-	$self->min_refit unless $args{refit_later};
-
-# Instantiate if we can
-	my $col = Tickit::Widget::Table::Column->new(
-		classes => [ $self->style_classes ],
-		table	=> $self,
-		%args
+	my $line = $self->row_from_idx($row);
+	my $base_pen = $self->get_style_pen(
+		($row == $self->highlight_row)
+		? 'highlight'
+		: ($self->multi_select && $self->{selected}{$line + $self->row_offset - 1})
+		? 'selected'
+		: 'failed'
 	);
 
-# Add this to our columns and link all rows to this column
-	push @{ $self->{columns} }, $col;
-	$_->add_column($col) for $self->children;
+		$rb->goto($line, 0);
+		my ($pre, undef, $post) = align textwidth($failure), $self->body_cols, 0.5;
+		$rb->erase($pre, $base_pen) if $pre;
+		$rb->text($failure, $base_pen);
+		$rb->erase($post, $base_pen) if $post;
+}
+sub render_pending_row {
+	my ($self, $rb, $rect, $row) = @_;
 
-# Put in a header cell as well if we have a header
-	$col->add_header_cell($self->header_row->cell(scalar(@{ $self->{columns} })-1)) if $self->{header_row};
+	my $line = $self->row_from_idx($row);
+	my $base_pen = $self->get_style_pen(
+		($row == $self->highlight_row)
+		? 'highlight'
+		: ($self->multi_select && $self->{selected}{$line + $self->row_offset - 1})
+		? 'selected'
+		: 'pending'
+	);
 
-# Now we should have enough information to refit if we're going to
-	$self->refit unless $args{refit_later};
-	$self->update_highlight unless $self->highlighted_item;
-	return $col;
+		$rb->goto($line, 0);
+		my ($pre, undef, $post) = align textwidth($self->loading_message), $self->body_cols, 0.5;
+		$rb->erase($pre, $base_pen) if $pre;
+		$rb->text($self->loading_message, $base_pen);
+		$rb->erase($post, $base_pen) if $post;
 }
 
-=head2 update_highlight
+=head2 on_scroll
+
+Update row cache to reflect a scroll event.
 
 =cut
 
-sub update_highlight {
-	my $self = shift;
-	if($self->highlight_mode eq 'row') {
-		$self->set_highlighted_row(0) unless $self->highlight_row;
-	} elsif($self->highlight_mode eq 'column') {
-		$self->set_highlighted_column(0) unless $self->highlight_column;
+sub on_scroll {
+	my ($self, $offset) = @_;
+	die "undef offset" unless defined $offset;
+
+	# Our row cache is a scrolling fixed-size window over the previous,
+	# current and next page, so any removals need to be compensated by
+	# empty items at the other end
+	my @replace = (undef) x ($offset < 0 ? -$offset : $offset);
+
+	my @removed;
+	if($offset > 0) {
+		# Scrolling down means we throw away the first N rows
+		@removed = splice @{$self->{row_cache}}, 0, $offset;
+		push @{$self->{row_cache}}, @replace;
 	} else {
-		$self->set_highlighted_cell(0, 0) unless $self->highlight_cell;
+		# and in the other direction, last N rows
+		@removed = splice @{$self->{row_cache}}, @{$self->{row_cache}} + $offset, -$offset, @replace;
+		unshift @{$self->{row_cache}}, @replace;
 	}
+
+	# Any items that were still in progress are no longer required, make
+	# sure we cancel them to avoid unnecessary work.
+	$_->cancel for grep defined($_) && !$_->is_ready, @removed;
+
+	return $self if exists $self->{cache_primer};
+	$self->{cache_primer} = 1;
+	$self->window->tickit->later(sub {
+		# Prime the cache for the missing entries
+		$self->row_cache($self->idx_from_row_cache($_)) for grep !defined($self->{row_cache}[$_]), 0..$#{$self->{row_cache}}; 
+		delete $self->{cache_primer};
+	});
 	$self
 }
 
-=head2 add_row
+=head2 fold_future
 
-Adds a new row of data to the table. This will instantiate
-a new L<Tickit::Widget::Table::Row> and return it.
+Helper method to apply a series of coderefs to a value.
 
 =cut
 
-sub add_row {
-	my $self = shift;
-	my %args = @_;
-
-# Instantiate the row using parameters as the cell values
-	my $row = Tickit::Widget::Table::Row->new(
-		classes => [ $self->style_classes ],
-		table	=> $self,
-		column	=> [ $self->column_list ],
-		can_highlight => $args{can_highlight},
-		data	=> $args{data} || [],
-	);
-	$self->add($row);
-
-# Add link back to the row for each of the columns
-	$_->add_row($row) for $self->column_list;
-
-# If nothing has been highlighted yet then highlight the
-# first row - might be us
-	$self->update_highlight unless $self->highlighted_item;
-	$self->resized;
-	return $row;
+sub fold_future {
+	my ($self, $prefix, $item, @steps) = @_;
+	return Future->wrap($item) unless @steps;
+	repeat {
+		my $code = shift;
+		Future->call(sub { $code->(@$prefix, $item) })->on_done(sub {
+			$item = shift
+		})
+	} foreach => \@steps
 }
 
-=head2 remove_row
+=head2 row_cache
 
-Remove the given row.
+Row cache accessor.
 
 =cut
 
-sub remove_row {
-	my $self = shift;
-	my $row = shift;
+sub row_cache {
+	my ($self, $row) = @_;
+	$self->{row_cache}[$self->row_cache_idx($row)] ||= do {
+		$self->adapter->get(
+			items => [$row],
+		)->then(sub {
+			# We have an item from storage. No idea what it is, could be an
+			# object, hashref, arrayref... the item transformations will
+			# convert it into something usable
+			my ($item) = @{ $_[0] };
+			return Future->fail('no such element') unless $item;
 
-# Work out which row index we are, since we may need to update
-# the highlighted row
-	my @c = $self->data_rows;
-	my ($idx) = grep { $c[$_] eq $row } 0..$#c;
-
-# If this is the highlighted row then adjust highlight to the
-# row above instead.
-	if($self->highlight_row eq $row) {
-		--$idx;
-		$self->set_highlighted_row(($idx < 0) ? 0 : $idx);
-	}
-
-# Do the actual removal
-	$self->remove($row);
-	$self->resized;
+			# Somewhat tedious way to reduce() a Future chain
+			$self->fold_future([ $row ], $item, @{$self->{item_transformations}})
+		})->then(sub {
+			# Our item is now accessible as an arrayref, start working on the columns
+			my $item = shift;
+			my @pending;
+			for my $col (0..$#{$self->{columns}}) {
+				my $cell = $item->[$col];
+				push @pending, (
+					$self->fold_future([ $row, $col ], $cell, @{$self->{columns}[$col]{transform} || [] })
+				)->then(sub {
+					# hey look at all these optimisations we're not doing
+					$self->fold_future([ $row, $col ], shift, @{$self->{cell_transformations}{"$row,$col"} || []})
+				})->on_fail(sub { warn "Fail: @_\n" })
+			}
+			# our transform at the tail of each Future chain should ensure that we
+			# end up with a helpful list of cells for this item. One last thing to
+			# do: bundle that back into an arrayref, because Reasons.
+			Future->needs_all(@pending)->transform(
+				done => sub { [ @_ ] }
+			)
+		})
+	};
 }
 
-=head2 clear_data
+=head2 apply_view_transformations
 
-Clears any data for this table, leaving structure including header row intact.
+Apply the transformations just before we render. Can return anything we know how to render.
 
 =cut
 
-sub clear_data {
+sub apply_view_transformations {
+	my ($self, $line, $col, $v) = @_;
+	$v = $_->($line, $col, $v) for @{$self->{view_transformations}};
+	$v
+}
+
+=head2 reshape
+
+Handle reshape requests.
+
+=cut
+
+sub reshape {
 	my $self = shift;
-	$_->remove for $self->data_rows;
-	$self->resized;
-	return $self;
+	delete @{$self}{qw(body_rect header_rect scrollbar_rect)};
+	$self->SUPER::reshape(@_);
+	$self->distribute_columns;
+}
+
+=head2 distribute_columns
+
+Distribute space between columns.
+
+=cut
+
+sub distribute_columns {
+	my $self = shift;
+	my $pad = $self->get_style_values('cell_padding');
+	my @spacing = @{$self->{columns}};
+	(undef, @spacing) = map {;
+		+{
+			base => $pad,
+			expand => 0,
+			type => 'padding'
+		},
+		$_
+	} @spacing if $pad;
+	my $cols = $self->window->cols;
+	--$cols if $self->vscroll;
+	distribute $cols, @spacing;
+	$self
 }
 
 =head2 window_gained
 
-Once we have a window, we want to refit to ensure that all the child elements
-are given subwindows with appropriate geometry.
+Called when a window has been assigned to the widget.
 
 =cut
 
 sub window_gained {
 	my $self = shift;
 	$self->SUPER::window_gained(@_);
-	$self->refit;
+	my $win = $self->window;
+
+	# Row cache starts as empty. We should really
+	# preserve any previous values here.
+	$self->{row_cache} = [
+		(undef) x ($self->body_lines * 3)
+	];
+
+	# Default anyway in newer versions
+	$win->set_expose_after_scroll(1) if $win->can('set_expose_after_scroll');
 }
 
-=head2 window_lost
+=head2 expose_rows
 
-When the main window is lost, we also clear all the subwindows that were created for children.
+Expose the given rows.
 
 =cut
 
-sub window_lost {
+sub expose_rows {
 	my $self = shift;
-	$self->SUPER::window_lost(@_);
-	$_->set_window(undef) for $self->children;
+	return $self unless my $win = $self->window;
+	my $cols = $win->cols;
+	map Tickit::Rect->new(
+		top => $_,
+		left => 0,
+		lines => 2,
+		cols => $cols
+	), @_;
 }
 
-{ # put ->on_key in a little scope of its own
-my %key_map = (
-	'Up'       => 'on_cursor_up',
-	'PageUp'   => 'on_cursor_pageup',
-	'Down'     => 'on_cursor_down',
-	'PageDown' => 'on_cursor_pagedown',
-	'Home'     => 'on_cursor_home',
-	'End'      => 'on_cursor_end',
-	'Left'     => 'on_cursor_left',
-	'Right'    => 'on_cursor_right',
-	'Insert'   => 'on_key_insert',
-	'Delete'   => 'on_key_delete',
-	'M-a'      => 'on_toggle_select_all',
-);
-my %text_map = (
-	' ' => 'on_select',
-);
+=head2 scroll_highlight
 
-=head2 on_key
-
-Key handling: convert some common key requests to events.
+Update scroll information after changing highlight position.
 
 =cut
 
-sub on_key {
+sub scroll_highlight {
 	my $self = shift;
-	# Not for us unless we have focus
-	return unless $self->window->is_focused;
+	my $offset = shift;
+	return $self unless my $win = $self->window;
 
-	my ($type, $str) = @_; # $key isn't used here. yet.
-	return 1 if $self->{on_key} && !$self->{on_key}->(@_);
-
-	if($type eq 'key') {
-		if(defined(my $method = $key_map{$str})) {
-			$self->$method;
-			return 1;
-		}
-		if($str eq 'Enter') {
-			$self->highlighted_item->activate;
-			return 1;
-		}
-	} elsif($type eq 'text') {
-		if(defined(my $method = $text_map{$str})) {
-			$self->$method;
-			return 1;
-		}
+	if($self->highlight_row + $offset < 0) {
+		$offset = -$self->highlight_row;
 	}
-	return 0;
-}
+	if($self->highlight_row + $offset > $self->row_count - 1) {
+		$offset = $self->row_count - $self->highlight_row;
+	}
+	return $self unless my $scrollbar_rect = $self->active_scrollbar_rect;
+	my $old = $self->highlight_visible_row;
+
+	# FIXME Work out the changed extents on the
+	# scrollbar, and just update those - note that
+	# T::W::ScrollBar should already have this logic
+	# somewhere, as does ProgressBar
+	my $redraw_rect = Tickit::RectSet->new;
+	$redraw_rect->add($scrollbar_rect);
+
+	$self->{highlight_row} += $offset;
+	$self->{row_offset} += $offset;
+
+	$redraw_rect->add($scrollbar_rect->translate($offset, 0));
+	$redraw_rect->add($_) for $self->expose_rows($old, $self->highlight_visible_row);
+
+	my $hdr = $self->header_lines;
+	$win->scrollrect($hdr, 0, $win->lines - $hdr, $win->cols, $offset, 0);
+	$self->on_scroll($offset);
+	$win->expose($_) for map $_->translate(-$offset, 0), $redraw_rect->rects;
 }
 
-=head2 on_toggle_select_all
+=head2 move_highlight
 
-Select everything, unless everything is already selected in which case select nothing instead.
+Move the highlighted row by the given offset (can be negative to move up).
 
 =cut
 
-sub on_toggle_select_all {
+sub move_highlight {
 	my $self = shift;
+	my $offset = shift;
+	return $self unless my $win = $self->window;
 
-# If the number selected matches the total, then we need to deselect.
-	if($self->data_rows == grep { $_->{selected} } $self->data_rows) {
-		$_->selected(0) for grep { $_->is_selected } $self->table->data_rows;
+	my $old = $self->highlight_visible_row;
+	$self->{highlight_row} += $offset;
+
+	$win->expose($_) for $self->expose_rows($old, $self->highlight_visible_row);
+	$self
+}
+
+=head2 scroll_position
+
+Current vertical scrollbar position.
+
+=cut
+
+sub scroll_position { shift->{row_offset} }
+
+=head2 row_count
+
+Total number of rows.
+
+=cut
+
+sub row_count {
+	my $self = shift;
+	$self->{item_count};
+}
+
+=head2 sb_height
+
+Current scrollbar height.
+
+=cut
+
+sub sb_height {
+	my $self = shift;
+	my $ext = $self->scroll_dimension;
+	my $max = $self->row_count - $ext;
+	return 1 unless $max;
+	return floor(0.5 + ($ext * $ext / $max));
+}
+
+=head2 scroll_rows
+
+Positions of the scrollbar indicator.
+
+=cut
+
+sub scroll_rows {
+	my $self = shift;
+	my $cur = $self->scroll_position;
+	my $ext = $self->scroll_dimension;
+	my $max = $self->row_count - $ext;
+	return unless $max;
+	my $y = floor(0.5 + ($cur * ($ext - $self->sb_height) / $max));
+	return $y, $y + $self->sb_height;
+}
+
+=head2 active_scrollbar_rect
+
+Rectangle representing the area covered by the current scrollbar.
+
+=cut
+
+sub active_scrollbar_rect {
+	my $self = shift;
+	return unless my ($start, $end) = $self->scroll_rows;
+	Tickit::Rect->new(
+		top => 1 + $start,
+		bottom => 2 + $end,
+		left => $self->window->cols - 1,
+		cols => 1,
+	);
+}
+
+=head2 scroll_dimension
+
+Size of the vertical scrollbar.
+
+=cut
+
+sub scroll_dimension {
+	my $self = shift;
+	return 1 unless my $win = $self->window;
+	$win->lines - 2;
+}
+
+=head2 on_adapter_change
+
+Applies a new adapter, taking care of any cleanup if there was an
+adapter previously active.
+
+Can be passed undef, to remove the adapter completely.
+
+=cut
+
+sub on_adapter_change {
+	my ($self, $adapter) = @_;
+
+	if(my $old = $self->{adapter}) {
+		$old->bus->unsubscribe_from_event(
+			@{$self->{adapter_subscriptions}}
+		);
+	}
+
+	delete $self->{bus};
+	$self->{adapter} = $adapter;
+	undef $self->{item_count};
+	return $self unless $adapter;
+
+	# Want weakrefs in here, because we're storing the subscriptions
+	# for later cleanup. 
+	$self->bus->subscribe_to_event(@{
+		$self->{adapter_subscriptions} = [
+			splice => $self->curry::weak::on_splice_event,
+			clear  => $self->curry::weak::on_clear_event,
+		]
+	});
+
+	$self->adapter->count->on_done(sub {
+		$self->{item_count} = shift
+	});
+	$self
+}
+
+=head2 on_splice_event
+
+Invoked by the adapter when data is added to or removed from
+the data source.
+
+=cut
+
+sub on_splice_event {
+	my ($self, $ev, $idx, $len, $data) = @_;
+
+	my $delta = @$data - $len;
+
+	if(my $win = $self->window) {
+		# Row cache update
+		my $rc_start = $self->idx_from_row_cache(0);
+		my $rc_end = $self->idx_from_row_cache(3 * $self->body_lines - 1);
+
+		$self->scroll_highlight($delta) if $delta;
+		$win->expose;
+	}
+
+	# Either update our cached count based on
+	# the change, or request a new count if we have
+	# none yet
+	if(defined $self->{item_count}) {
+		$self->{item_count} += $delta;
 	} else {
-		$_->selected(1) for grep { !$_->is_selected } $self->data_rows;
-	}
-	return $self;
-}
-
-=head2 on_select
-
-Toggle selection for this row.
-
-=cut
-
-sub on_select {
-	my $self = shift;
-	$self->highlight_row->selected(!$self->highlight_row->selected);
-	return $self;
-}
-
-=head2 on_key_insert
-
-Should not be here.
-
-=cut
-
-sub on_key_insert {
-	my $self = shift;
-}
-
-=head2 on_key_delete
-
-Should not be here.
-
-=cut
-
-sub on_key_delete {
-	my $self = shift;
-}
-
-=head2 on_cursor_up
-
-Move to the row above.
-
-=cut
-
-sub on_cursor_up {
-	my $self = shift;
-	# No vertical navigation in column mode
-	return $self if $self->highlight_mode eq 'column';
-
-	# 1 for header row
-	my $rows = $self->data_rows;
-	my %seen;
-	ROW: {
-		do {
-			my $idx = $self->highlight_row_index;
-			$idx = $rows - 1 if --$idx < 0;
-			$self->set_highlighted_row($idx);
-			last ROW if $seen{$idx}++;
-		} until $self->highlight_row && $self->highlight_row->can_highlight;
+		$self->adapter->count->on_done(sub {
+			$self->{item_count} = shift
+		});
 	}
 }
 
-=head2 on_cursor_home
+=head2 on_clear_event
 
-Move to the top of the table.
-
-=cut
-
-sub on_cursor_home {
-	my $self = shift;
-	# No vertical navigation in column mode
-	return $self if $self->highlight_mode eq 'column';
-
-	$self->set_highlighted_row(0);
-}
-
-=head2 on_cursor_end
-
-Move to the end of the table.
+Called by the adapter when all data has been removed from the
+data source.
 
 =cut
 
-sub on_cursor_end {
-	my $self = shift;
-	# No vertical navigation in column mode
-	return $self if $self->highlight_mode eq 'column';
-
-	$self->set_highlighted_row($self->data_rows - 1);
-}
-
-=head2 on_cursor_pageup
-
-Move several lines up.
-
-=cut
-
-sub on_cursor_pageup {
-	my $self = shift;
-	my $idx = $self->highlight_row_index;
-	$idx -= 10;
-	$idx = 0 if $idx < 0;
-	$self->set_highlighted_row($idx);
-}
-
-=head2 on_cursor_down
-
-Move one line down.
-
-=cut
-
-sub on_cursor_down {
-	my $self = shift;
-	# No vertical navigation in column mode
-	return $self if $self->highlight_mode eq 'column';
-
-	my %seen;
-	my $rows = $self->children;
-	ROW: {
-		do {
-			my $idx = $self->highlight_row_index;
-			$idx = 0 if ++$idx >= $rows;
-			$self->set_highlighted_row($idx);
-			last ROW if $seen{$idx}++;
-		} until $self->highlight_row && $self->highlight_row->can_highlight;
+sub on_clear_event {
+	my ($self, $ev) = @_;
+	$self->{highlight_row} = 0;
+	$self->{item_count} = 0;
+	if(my $win = $self->window) {
+		$win->expose;
 	}
 }
 
-=head2 on_cursor_pagedown
+=head1 METHODS - Key bindings
 
-Move several lines down.
+=head2 key_previous_row
+
+Go to the previous row.
 
 =cut
 
-sub on_cursor_pagedown {
+sub key_previous_row {
 	my $self = shift;
-	# No vertical navigation in column mode
-	return $self if $self->highlight_mode eq 'column';
+	return $self unless my $win = $self->window;
+	return $self if $self->{highlight_row} <= 0;
 
-	my $idx = $self->highlight_row_index;
-	$idx += 10;
-	$idx = $self->data_rows - 1 if $idx >= $self->data_rows;
-	$self->set_highlighted_row($idx);
+	return $self->move_highlight(-1) if $self->highlight_visible_row >= 1;
+	return $self->scroll_highlight(-1);
 }
 
-=head2 on_cursor_left
+=head2 key_next_row
 
-Move to the item on the left.
+Move to the next row.
 
 =cut
 
-sub on_cursor_left {
+sub key_next_row {
 	my $self = shift;
-	return $self if $self->highlight_mode eq 'row';
+	return $self unless my $win = $self->window;
+	return $self if $self->{highlight_row} >= $self->row_count - 1;
 
-	my %seen;
-	COL:
-	do {
-		my $idx = $self->highlight_column_index;
-		$idx = $self->columns - 1 if --$idx < 0;
-		$self->set_highlighted_column($idx);
-		last COL if $seen{$idx}++;
-	} until $self->highlight_column->can_highlight;
+	return $self->move_highlight(1) if $self->highlight_visible_row < $win->lines - 2;
+	return $self->scroll_highlight(1);
 }
 
-=head2 on_cursor_right
+=head2 key_first_row
 
-Move to the item on the right.
+Move to the first row.
 
 =cut
 
-sub on_cursor_right {
+sub key_first_row {
 	my $self = shift;
-	return $self if $self->highlight_mode eq 'row';
-
-	my %seen;
-	COL:
-	do {
-		my $idx = $self->highlight_column_index;
-		$idx = ++$idx % $self->columns;
-		$self->set_highlighted_column($idx);
-		last COL if $seen{$idx}++;
-	} until $self->highlight_column->can_highlight;
+	$self->{highlight_row} = 0;
+	$self->{row_offset} = 0;
+	$self->redraw;
 }
 
-=head2 highlight_mode
+=head2 key_last_row
+
+Move to the last row.
 
 =cut
 
-sub highlight_mode {
+sub key_last_row {
 	my $self = shift;
-	if(@_) {
-		$self->{highlight_mode} = shift;
-		return $self;
+	$self->{highlight_row} = $self->row_count - 1;
+	$self->{row_offset} = $self->row_count > $self->scroll_dimension ? -1 + $self->row_count - $self->scroll_dimension : 0;
+	$self->redraw;
+}
+
+=head2 key_previous_page
+
+Go up a page.
+
+=cut
+
+sub key_previous_page {
+	my $self = shift;
+	$self->scroll_highlight(-$self->scroll_dimension);
+}
+
+=head2 key_next_page
+
+Go down a page.
+
+=cut
+
+sub key_next_page {
+	my $self = shift;
+	$self->scroll_highlight($self->scroll_dimension);
+}
+
+=head2 key_next_column
+
+Move to the next column.
+
+=cut
+
+sub key_next_column { }
+
+=head2 key_previous_column
+
+Move to the previous column.
+
+=cut
+
+sub key_previous_column { }
+
+=head2 key_first_column
+
+Move to the first column.
+
+=cut
+
+sub key_first_column { }
+
+=head2 key_last_column
+
+Move to the last column.
+
+=cut
+
+sub key_last_column { }
+
+=head2 key_activate
+
+Call the C< on_activate > coderef with either the highlighted item, or the selected
+items if we're in multiselect mode.
+
+ $on_activate->([ row indices ], [ items... ])
+
+The items will be as returned by the storage adapter, and will not have any of the
+data transformations applied.
+
+=cut
+
+sub key_activate {
+	my $self = shift;
+	if(my $code = $self->{on_activate}) {
+		my @selected = 
+			  $self->multi_select
+			? (sort { $a <=> $b } grep $self->{selected}{$_}, keys %{$self->{selected}})
+			: ($self->highlight_row);
+		my $f; $f = $self->adapter->get(
+			items => \@selected,
+		)->then(sub {
+			$code->(\@selected, shift)
+		})->on_ready(sub { undef $f });
 	}
-	$self->{highlight_mode}
+	$self
 }
 
-=head2 default_action
+=head2 key_select_toggle
+
+Toggle selected row.
 
 =cut
 
-sub default_action {
+sub key_select_toggle {
 	my $self = shift;
-	if(@_) {
-		$self->{default_action} = shift;
-		return $self;
-	}
-	$self->{default_action}
+	return $self unless $self->multi_select;
+	$self->{selected}{$self->highlight_row} = $self->{selected}{$self->highlight_row} ? 0 : 1;
+	$self
 }
 
-=head2 bind_key
+=head1 METHODS - Filtering
 
-Accessor/mutator for the C<on_key> callback.
-
-Returns $self when used as a mutator, or the current C<on_key> value when
-called with no parameters.
+Very broken. Ignore these for now. Sorry.
 
 =cut
 
-sub bind_key {
+# NYI
+sub row_visibility_changed {
 	my $self = shift;
-	if(@_) {
-		$self->{on_key} = shift;
-		return $self;
-	}
-	$self->{on_key}
 }
 
-=head2 on_highlight_changed
+=head2 row_visibility
 
-Accessor/mutator for the C<on_highlight_changed> callback.
+Sets the visibility of the given row (by index).
 
-Returns $self when used as a mutator, or the current C<on_highlight_changed> value when
-called with no parameters.
+Example:
+
+ # Make row 5 hidden
+ $tbl->row_visibility(5, 0)
+ # Show row 0
+ $tbl->row_visibility(0, 1)
 
 =cut
 
-sub on_highlight_changed {
-	my $self = shift;
-	if(@_) {
-		$self->{on_highlight_changed} = shift;
-		return $self;
-	}
-	$self->{on_highlight_changed}
+sub row_visibility {
+	my ($self, $idx, $visible) = @_;
+	my $row = $self->adapter->get($idx);
+	my $prev = ref($row);
+	$prev = 'Tickit::Widget::Table::VisibleRow' if $prev eq 'ARRAY';
+	my $next = $visible
+	? 'Tickit::Widget::Table::VisibleRow'
+	: 'Tickit::Widget::Table::HiddenRow';
+	bless $row, $next;
+	$self->row_visibility_changed($idx) unless $self->{IS_FILTER} || ($prev eq $next);
+	$row
 }
 
-sub scroll_top { shift->{scroll_top} }
-sub scroll_bottom { shift->{scroll_bottom} }
+=head2 filter
 
-sub row_visible {
-	my $self = shift;
-	my $row = shift;
-	my $idx = 0;
-	my $y = 0;
-	my $h = $row->window ? $row->window->lines : $row->lines;
-	for ($self->data_rows) {
-		last if $_ eq $row;
-		$y += $_->window ? $_->window->lines : $_->lines;
-		++$idx;
+This will use the given coderef to set the visibility of each row in the table.
+The coderef will be called once for each row, and should return true for rows
+which should be visible, false for rows to be hidden.
+
+The coderef currently takes a single parameter: an arrayref representing the
+columns of the row to be processed.
+
+ # Hide all rows where the second column contains the text 'OK'
+ $tbl->filter(sub { shift->[1] ne 'OK' });
+
+Note that this does not affect row selection: if the multiselect flag is enabled,
+it is possible to filter out rows that are selected. This behaviour is by design
+(the idea was to allow union select via different filter criteria), call the
+L</unselect_hidden_rows> method after filtering if you want to avoid this.
+
+Also note that this is a one-shot operation. If you add or change data, you'll
+need to reapply the filter operation manually.
+
+=cut
+
+sub filter {
+	my ($self, $filter) = @_;
+	# Defer any updates until we've finished making changes
+	local $self->{IS_FILTER} = 1;
+	for my $idx (0..$self->adapter->count - 1) {
+		my $row = $self->adapter->get($idx);
+		$self->row_visibility($idx, $filter->($row));
 	}
+	$self->redraw;
+}
 
-	return 1 if $y >= $self->scroll_top && $y <= $self->scroll_bottom;
-	return 0;
+sub apply_filters_to_row {
+	my ($self, $idx) = @_;
+}
+
+=head2 unselect_hidden_rows
+
+Helper method to mark any hidden rows as unselected.
+Call this after L</filter> if you want to avoid confusing
+users with invisible selected rows.
+
+=cut
+
+sub unselect_hidden_rows {
+	my $self = shift;
+	delete @{$self->{selected}}{
+		grep ref($self->adapter->get($_))->isa('Tickit::Widget::Table::HiddenRow'), 0..$self->adapter->count-1
+	};
+	$self
 }
 
 1;
 
 __END__
 
+=head1 TODO
+
+Current list of pending features:
+
+=over 4
+
+=item * Column and cell highlighting modes
+
+=item * Proper widget-in-cell support
+
+=item * Better header support (more than one row, embedded widgets)
+
+=back
+
+=head1 SEE ALSO
+
+Other tables and table-like things:
+
+=over 4
+
+=item * L<Tickit::Widget::Table> - older table implementation based on L<Tickit::Widget::HBox> and L<Tickit::Widget::VBox>
+widgets. Does not support scrolling and performance isn't as good, so it will eventually be merged with this one.
+
+=item * L<Text::ANSITable> - not part of L<Tickit> but has some impressive styling capabilities.
+
+=back
+
+And these are probably important background reading for formatting and data source support:
+
+=over 4
+
+=item * L<String::Tagged> - supported for applying custom formatting (specifically, pen attributes)
+
+=item * L<Adapter::Async> - API for dealing with abstract data sources
+
+=back
+
 =head1 AUTHOR
 
-Tom Molesworth <cpan@entitymodel.com>
+Tom Molesworth <cpan@perlsite.co.uk>
+
+=head1 CONTRIBUTORS
+
+With thanks to the following for contribution:
+
+=over 4
+
+=item * Paul "LeoNerd" Evans for testing and suggestions on storage/abstraction handling
+
+=item * buu, for testing and patches
+
+=back
 
 =head1 LICENSE
 
-Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.
+Copyright Tom Molesworth 2012-2014. Licensed under the same terms as Perl itself.

@@ -1,28 +1,55 @@
 Revision history for Tickit-Widget-Table
 
-0.101     2013-08-26 12:03:22 Europe/London
-	Build fixes:
-	* Added cpanfile to fix missing dependencies
+0.200     2014-08-16 18:43:32+01:00 Europe/London
+	Renamed from Tickit::Widget::Table::Paged to Tickit::Widget::Table.
+	The old Tickit::Widget::Table implementation didn't work out
+	particularly well, and currently fails tests.
 
-	Functional changes:
-	* Tickit::Widget::Column empty ->render method is now ->render_to_rb for consistency
+	New features:
+	* Adapter support - underlying data is provided by an
+	Adapter::Async::OrderedList instance, allowing the table widget to
+	receive updates when the underlying data source changes
+	* Row visibility - allows filtering rows to show a subset of data,
+	see the ->filter method for more details
+	* Transformations - used for applying specific formatting or text
+	conversion, such as timestamp => date and time representation or
+	word highlighting
 
-0.100     2013-08-23 23:11:47 Europe/London
-	Updates for various Tickit core API changes:
-	* Tickit::RenderBuffer support
-	* CLEAR_BEFORE_RENDER now disabled
-	* Tickit::Style support (see examples/styles.pl)
+	Bugs fixed:
+	* Avoid warnings when no alignment is specified (default is 'left')
+	* Fix numeric alignment (can now use 0.5, 1.0 etc. as originally
+	intended, previously it had to be 'centre', 'right' etc.)
+	* Scrollbar rendering - sometimes this extended into header due
+	to incorrect ratio calculation
 
-0.003     2012-08-12 05:25:52 Europe/London
-	Support row and column highlighting, and provide an example implementation of a menubar
-	system which uses this. There's also a half-finished example showing a dialog box, doesn't
-	look great though.
+	Bugs introduced:
+	* Filtering does not yet work reliably. It might not work at all.
+	You should probably wait for the next version.
+	* Scrolling past the start or the end of the table is possible -
+	there's a plan to support "wrapped" tables but that requires splitting
+	the scrollbar, maybe fixed iin the next version
 
-	Currently depends on perl-5.10 (for/when), should be easy to drop this if there's any
-	demand for pre-5.10 support.
+0.004     2014-04-22 02:33:42+01:00 Europe/London
+	New features:
+	* ->data method returns the arrayref holding table data
+	* ->selected_rows returns all selected rows (highlighted row only
+	if we're not in multiselect mode). (both features thanks to a patch
+	from buu)
 
-0.002     2011-11-27 23:34:36 Europe/London
-	Fix a missing Scalar::Util::weaken import, and expand synopsis ever-so-slightly.
+0.003     2014-04-22 02:02:25+01:00 Europe/London
+	No new features.
 
-0.001     2011-11-27 05:29:06 Europe/London
+	Bugs fixed:
+	* Fixed off-by-one on scrollrect (thanks LeoNerd)
+	* An exception could be raised when scrolling off the end of a list,
+	due to incorrect scrollbar height calculation (thanks buu)
+
+0.002     2013-11-10 01:26:54 Europe/London
+	New features:
+	* Allow setting on_activate at instantiation or via accessor
+	(previously had to set ->{on_activate} manually)
+	* Multiselection support (disabled by default)
+
+0.001     2013-09-15 02:55:07 Europe/London
 	Initial CPAN release
+

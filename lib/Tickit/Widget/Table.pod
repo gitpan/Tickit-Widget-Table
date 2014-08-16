@@ -6,313 +6,579 @@ at lib/Tickit/Widget/Table.pm
 If you do edit this file, and don't want your changes to be removed, make
 sure you change the first line.
 
+=encoding utf8
+
 =cut
 
 =head1 NAME
 
-Tickit::Widget::Table - tabular widget support for L<Tickit>
+Tickit::Widget::Table - table widget with support for scrolling/paging
 
 =head1 VERSION
 
-version 0.101
+Version 0.200
 
 =head1 SYNOPSIS
 
- use Tickit::Widget::HBox;
+ use Tickit;
  use Tickit::Widget::Table;
- # Create the widget
- my $table = Tickit::Widget::Table->new(
-   padding => 1,
-   columns => [
-     { label => 'First column', align => 'center', width => 'auto' },
-     { label => 'Second column', align => 'right', width => 'auto' },
-   ],
+
+ my $tbl = Tickit::Widget::Table->new;
+ $tbl->add_column(
+ 	label => 'Left',
+ 	align => 'left',
+ 	width => 8,
  );
- $table->add_row(
-   data => [
-     'First entry',
-     'Second column',
-   ]
+ $tbl->add_column(
+ 	label => 'Second column',
+ 	align => 'centre'
  );
- $table->add_row(
-   data => [
-     'Second entry',
-     'More data',
-   ]
- );
- # Put it in something
- my $container = Tickit::Widget::HBox->new;
- $container->add($table, expand => 1);
+ $tbl->add_row('left', 'middle') for 1..100;
+ Tickit->new(root => $tbl)->run;
 
 =head1 DESCRIPTION
 
-Basic support for table widgets. See examples/ in the main distribution for usage
-instructions.
+B<WARNING>: This is a preview release. API is subject to change in future,
+please get in contact if you're using this, or wait for version 1.000.
 
-=head2 Highlight mode
+=begin HTML
+
+<p><img src="http://tickit.perlsite.co.uk/cpan-screenshot/tickit-widget-table-paged1.gif" alt="Paged table widget in action" width="430" height="306"></p>
+
+=end HTML
+
+This widget provides a scrollable table implementation for use on larger data
+sets. Rather than populating the table with values, you provide an adapter
+which implements the C<count> and C<get> methods, and the table widget will
+query the adapter for the current "page" of values.
+
+This abstraction should allow access to larger datasets than would fit in
+available memory, such as a database table or procedurally-generated data.
+
+See L<Adapter::Async::OrderedList::Array> if your data is stored in a Perl
+array. Other subclasses may be available if you have a different source.
+
+=head2 Transformations
+
+Apply to:
 
 =over 4
 
-=item * none - no highlight support
+=item * Row
 
-=item * row - up/down keys move highlight between rows
+=item * Column
 
-=item * column - left/right keys select the currently highlighted column
-
-=item * cell - individual cells can be highlighted
+=item * Cell
 
 =back
+
+=head3 Item transformations
+
+This takes the original data item for the row, and returns one of the following:
+
+=over 4
+
+=item * Future - when resolved, the items will be used as cells
+
+=item * Arrayref - holds the cells directly
+
+=back
+
+The data item can be anything - an array-backed adapter would return an arrayref, ORM will give you an object for basic collections.
+
+Any number of cells may be returned from a row transformation, but you may get odd results if the cell count is not consistent.
+
+An array adapter needs no row transformation, due to the arrayref behaviour. You could provide a Future alternative:
+
+ $row->apply_transformation(sub {
+  my ($item) = @_;
+  Future->wrap(
+   @$item
+  )
+ });
+
+For the ORM example, something like this:
+
+ $row->apply_transformation(sub {
+  my ($item) = @_;
+  Future->wrap(
+   map $item->$_, qw(id name created)
+  )
+ });
+
+=head3 Column transformations
+
+Column transformations are used to apply styles and formats.
+
+You get an input value, and return either a string or a Future.
+
+Example date+colour transformation on column:
+
+ $col->apply_transformation(sub {
+  my $v = shift;
+  Future->wrap(
+   String::Tagged->new(strftime '%Y-%m-%d', $v)
+   ->apply_tag(0, 4, b => 1)
+   ->apply_tag(5, 1, fg => 8)
+   ->apply_tag(6, 2, fg => 4)
+   ->apply_tag(9, 1, fg => 8)
+  );
+ });
+
+=head3 Cell transformations
+
+Cell transformations are for cases where you need fine control over individual components. They operate similarly to column transformations,
+taking the input value and returning either a string or a Future.
+
+Typical example would be a spreadsheet:
+
+ $cell->apply_transformation(sub {
+  my $v = shift;
+  return $v unless blessed $v;
+  return eval $v if $v->is_formula;
+  return $v->to_string if $v->is_formatted;
+  return "$v"
+ });
+
+=head3 View transformations
+
+This happen every time the row is rendered. They provide the ability to do view-specific modification,
+such as replacing long strings with an elided version ("Some lengthy messa...")
 
 =head1 METHODS
 
 =head2 new
 
-Create a new table widget.
+Instantiate. Will attempt to take focus.
 
 Takes the following named parameters:
 
 =over 4
 
-=item * columns - column definition arrayref, see L</add_column> for the details
+=item * on_activate - coderef to call when the user hits the Enter key,
+will be passed the highlighted row or selection when in C<multi_select> mode,
+see L</on_activate> for more details.
 
-=item * padding - amount of padding (in chars) to apply between columns
+=item * multi_select - when set, the widget will allow selection of multiple
+rows (typically by pressing Space to toggle a given row)
 
-=item * default_action - coderef to execute when a cell/row/column
-is activated, unless there is an action defined on that item already
+=item * adapter - an L<Adapter::Async::OrderedList::Array> instance
 
-=item * header - flag to select whether a header is shown. If not provided it is
-assumed that a header is wanted.
-
-=item * highlight_mode - one of row (default), column, cell, defines how navigation
-and selection work
+=item * data - alternative to passing an adapter, if you want to wrap an existing
+array without creating an L<Adapter::Async::OrderedList> subclass yourself
 
 =back
 
-=head2 add_header_row
+Returns a new instance.
 
-Adds a header row to the top of the table. Takes no parameters.
+=head2 bus
 
-=head2 add_initial_columns
+Bus for event handling. Normally an L<Adapter::Async::Bus> instance
+shared by the adapter.
 
-Populates initial columns from the given arrayref. Generally handled
-internally when passing C< columns > in the constructor.
+=head1 METHODS - Table content
 
-=head2 padding
+=head2 clear
 
-Returns amount of padding between cells
+Clear all data in the table.
 
-=head2 lines
+=head2 expose_row
 
-Number of rows.
+Expose the given row (provided as an index into the underlying storage).
 
-=head2 cols
-
-Number of screen columns.
-
-=head2 rows
-
-'rows' are the number of data rows we have in the table. That's one less
-than the total number of rows if we have a header row
-
-=head2 columns
-
-Number of columns in the table.
-
-=head2 data_rows
-
-Returns the rows containing data - this excludes the header row if there is
-one.
-
-=head2 reposition_cursor
-
-Put the cursor in the right place. Possibly used internally, probably of
-dubious utility.
-
-=head2 header_row
-
-Returns the header row if there is one.
-
-=head2 set_highlighted_row
-
-Highlight a row in the table. Only one row can be highlighted at a time,
-as opposed to selected rows.
-
-=head2 set_highlighted_column
-
-Highlight a row in the table. Only one row can be highlighted at a time,
-as opposed to selected rows.
-
-=head2 set_highlighted_cell
-
-Highlight a cell in the table. Only one cell can be highlighted at a time,
-as opposed to selected rows.
-
-=head2 highlight_row
-
-Returns currently-highlighted row, if we have one.
-In cell mode, returns the row corresponding to current cell highlight.
-
-=head2 highlight_column
-
-Returns currently-highlighted column, if we have one.
-In cell mode, returns the column corresponding to current cell highlight.
-
-=head2 highlight_cell
-
-=head2 highlighted_item
-
-=head2 highlight_row_index
-
-Index of the currently-highlighted row.
-
-=head2 highlight_column_index
-
-Index of the currently-highlighted column.
-
-=head2 refit
-
-Check current widths and apply width on columns we already have sufficient information for.
-
-=head2 min_refit
-
-Try to shrink columns down to minimum possible width if they're
-flexible. Typically used by L</add_column> to allow the new
-column to fit properly.
-
-=head2 get_column_width
-
-Return the width for the given column, or undef if this
-column should be autosized.
-
-=head2 column_list
-
-Returns all columns for this table as a list.
+ $tbl->expose_row(14);
 
 =head2 add_column
 
-Add a new column to the table, returning a
-L<Tickit::Widget::Table::Column> instance.
-
-=head2 update_highlight
-
-=head2 add_row
-
-Adds a new row of data to the table. This will instantiate
-a new L<Tickit::Widget::Table::Row> and return it.
-
-=head2 remove_row
-
-Remove the given row.
-
-=head2 clear_data
-
-Clears any data for this table, leaving structure including header row intact.
-
-=head2 window_gained
-
-Once we have a window, we want to refit to ensure that all the child elements
-are given subwindows with appropriate geometry.
-
-=head2 window_lost
-
-When the main window is lost, we also clear all the subwindows that were created for children.
-
-=head2 on_key
-
-Key handling: convert some common key requests to events.
-
-=head2 on_toggle_select_all
-
-Select everything, unless everything is already selected in which case select nothing instead.
-
-=head2 on_select
-
-Toggle selection for this row.
-
-=head2 on_key_insert
-
-Should not be here.
-
-=head2 on_key_delete
-
-Should not be here.
-
-=head2 on_cursor_up
-
-Move to the row above.
-
-=head2 on_cursor_home
-
-Move to the top of the table.
-
-=head2 on_cursor_end
-
-Move to the end of the table.
-
-=head2 on_cursor_pageup
-
-Move several lines up.
-
-=head2 on_cursor_down
-
-Move one line down.
-
-=head2 on_cursor_pagedown
-
-Move several lines down.
-
-=head2 on_cursor_left
-
-Move to the item on the left.
-
-=head2 on_cursor_right
-
-Move to the item on the right.
-
-=head2 highlight_mode
-
-=head2 default_action
-
-=head2 bind_key
-
-Accessor/mutator for the C<on_key> callback.
-
-Returns $self when used as a mutator, or the current C<on_key> value when
-called with no parameters.
-
-=head2 on_highlight_changed
-
-Accessor/mutator for the C<on_highlight_changed> callback.
-
-Returns $self when used as a mutator, or the current C<on_highlight_changed> value when
-called with no parameters.
-
-=head1 INHERITED METHODS
+Add a new column. Takes the following named parameters:
 
 =over 4
 
-=item L<Tickit::Widget::VBox>
+=item * width - (optional) number of columns
 
-L<get_child_base|Tickit::Widget::VBox/get_child_base>, L<get_total_quota|Tickit::Widget::VBox/get_total_quota>, L<set_child_window|Tickit::Widget::VBox/set_child_window>
+=item * type - (optional) data type, currently only supports 'text' (the default)
 
-=item L<Tickit::Widget::LinearBox>
+=item * align - (optional) align left, center or right
 
-L<add|Tickit::Widget::LinearBox/add>, L<child_opts|Tickit::Widget::LinearBox/child_opts>, L<children|Tickit::Widget::LinearBox/children>, L<remove|Tickit::Widget::LinearBox/remove>, L<render_to_rb|Tickit::Widget::LinearBox/render_to_rb>, L<reshape|Tickit::Widget::LinearBox/reshape>, L<set_child|Tickit::Widget::LinearBox/set_child>, L<set_child_opts|Tickit::Widget::LinearBox/set_child_opts>
+=item * transform - (optional) list of transformations to apply
 
-=item L<Tickit::ContainerWidget>
+=item * visible - (optional) true if this column should be shown
 
-L<child_resized|Tickit::ContainerWidget/child_resized>, L<children_changed|Tickit::ContainerWidget/children_changed>, L<find_child|Tickit::ContainerWidget/find_child>, L<focus_next|Tickit::ContainerWidget/focus_next>
+=back
 
-=item L<Tickit::Widget>
+Returns $self.
 
-L<get_style_pen|Tickit::Widget/get_style_pen>, L<get_style_text|Tickit::Widget/get_style_text>, L<get_style_values|Tickit::Widget/get_style_values>, L<key_focus_next_after|Tickit::Widget/key_focus_next_after>, L<key_focus_next_before|Tickit::Widget/key_focus_next_before>, L<on_pen_changed|Tickit::Widget/on_pen_changed>, L<parent|Tickit::Widget/parent>, L<pen|Tickit::Widget/pen>, L<redraw|Tickit::Widget/redraw>, L<resized|Tickit::Widget/resized>, L<set_parent|Tickit::Widget/set_parent>, L<set_pen|Tickit::Widget/set_pen>, L<set_style|Tickit::Widget/set_style>, L<set_style_tag|Tickit::Widget/set_style_tag>, L<set_window|Tickit::Widget/set_window>, L<style_classes|Tickit::Widget/style_classes>, L<take_focus|Tickit::Widget/take_focus>, L<window|Tickit::Widget/window>
+=head2 selected_rows
+
+Returns the selected row, or multiple rows as a list if multi_select is enabled.
+If multi_select is enabled it does not return the row currently highlighted (unless that row is also selected).
+
+=head1 METHODS - Callbacks
+
+=head2 on_activate
+
+Accessor for the activation callback - if called without parameters,
+will return the current coderef (if any), otherwise, will set the new
+callback.
+
+This callback will be triggered via L</key_activate>:
+
+ $code->($row_index, $row_data_as_arrayref)
+
+If multiselect is enabled, the callback will have the following:
+
+ $code->(
+   [$highlight_row_index, @selected_row_indices],
+   $highlight_row_data_as_arrayref,
+   @selected_rows_as_arrayrefs
+ )
+
+(the selected row data + index list could be empty here)
+
+=head2 multi_select
+
+Accessor for multi_select mode - when set, this allows multiple rows
+to be selected.
+
+=head1 METHODS - Other
+
+=head2 lines
+
+Number of lines to request.
+
+=head2 cols
+
+Number of columns to request.
+
+=head2 vscroll
+
+True if there's a vertical scrollbar (currently there is no way to
+disable this scrollbar).
+
+=head2 hscroll
+
+True if there's a horizontal scrollbar. There isn't one, this always
+returns false.
+
+=head2 row_offset
+
+Current row offset (vertical scroll position).
+
+=head2 header_rect
+
+Returns the L<Tickit::Rect> representing the header area.
+
+=head2 body_rect
+
+Returns the L<Tickit::Rect> representing the body area.
+
+=head2 scrollbar_rect
+
+Returns the L<Tickit::Rect> representing the scroll bar.
+
+=head2 header_lines
+
+Returns the number of lines in the header. Hardcoded to 1.
+
+=head2 body_lines
+
+Returns the number of lines in the body.
+
+=head2 body_cols
+
+Returns the number of columns in the body.
+
+=head2 idx_from_row
+
+Returns a storage index from a body row index.
+
+=head2 row_from_idx
+
+Returns a body row index from a storage index.
+
+=head2 row_cache_idx
+
+Returns a row cache offset from a storage index.
+
+=head2 idx_from_row_cache
+
+Returns a storage index from a row cache offset.
+
+=head2 highlight_row
+
+Returns the index of the currently-highlighted row.
+
+=head2 highlight_visible_row
+
+Returns the position of the highlighted row taking scrollbar into account.
+
+=head1 METHODS - Rendering
+
+=head2 render_to_rb
+
+Render the table. Called from expose events.
+
+=head2 render_header
+
+Render the header area.
+
+=head2 render_header_cell
+
+Render a specific header cell.
+
+=head2 render_scrollbar
+
+Render the scrollbar.
+
+=head2 render_body
+
+Render the table body.
+
+=head2 render_row
+
+Renders a given row, using storage index.
+
+=head2 on_scroll
+
+Update row cache to reflect a scroll event.
+
+=head2 fold_future
+
+Helper method to apply a series of coderefs to a value.
+
+=head2 row_cache
+
+Row cache accessor.
+
+=head2 apply_view_transformations
+
+Apply the transformations just before we render. Can return anything we know how to render.
+
+=head2 reshape
+
+Handle reshape requests.
+
+=head2 distribute_columns
+
+Distribute space between columns.
+
+=head2 window_gained
+
+Called when a window has been assigned to the widget.
+
+=head2 expose_rows
+
+Expose the given rows.
+
+=head2 scroll_highlight
+
+Update scroll information after changing highlight position.
+
+=head2 move_highlight
+
+Move the highlighted row by the given offset (can be negative to move up).
+
+=head2 scroll_position
+
+Current vertical scrollbar position.
+
+=head2 row_count
+
+Total number of rows.
+
+=head2 sb_height
+
+Current scrollbar height.
+
+=head2 scroll_rows
+
+Positions of the scrollbar indicator.
+
+=head2 active_scrollbar_rect
+
+Rectangle representing the area covered by the current scrollbar.
+
+=head2 scroll_dimension
+
+Size of the vertical scrollbar.
+
+=head2 on_adapter_change
+
+Applies a new adapter, taking care of any cleanup if there was an
+adapter previously active.
+
+Can be passed undef, to remove the adapter completely.
+
+=head2 on_splice_event
+
+Invoked by the adapter when data is added to or removed from
+the data source.
+
+=head2 on_clear_event
+
+Called by the adapter when all data has been removed from the
+data source.
+
+=head1 METHODS - Key bindings
+
+=head2 key_previous_row
+
+Go to the previous row.
+
+=head2 key_next_row
+
+Move to the next row.
+
+=head2 key_first_row
+
+Move to the first row.
+
+=head2 key_last_row
+
+Move to the last row.
+
+=head2 key_previous_page
+
+Go up a page.
+
+=head2 key_next_page
+
+Go down a page.
+
+=head2 key_next_column
+
+Move to the next column.
+
+=head2 key_previous_column
+
+Move to the previous column.
+
+=head2 key_first_column
+
+Move to the first column.
+
+=head2 key_last_column
+
+Move to the last column.
+
+=head2 key_activate
+
+Call the C< on_activate > coderef with either the highlighted item, or the selected
+items if we're in multiselect mode.
+
+ $on_activate->([ row indices ], [ items... ])
+
+The items will be as returned by the storage adapter, and will not have any of the
+data transformations applied.
+
+=head2 key_select_toggle
+
+Toggle selected row.
+
+=head1 METHODS - Filtering
+
+Very broken. Ignore these for now. Sorry.
+
+=head2 row_visibility
+
+Sets the visibility of the given row (by index).
+
+Example:
+
+ # Make row 5 hidden
+ $tbl->row_visibility(5, 0)
+ # Show row 0
+ $tbl->row_visibility(0, 1)
+
+=head2 filter
+
+This will use the given coderef to set the visibility of each row in the table.
+The coderef will be called once for each row, and should return true for rows
+which should be visible, false for rows to be hidden.
+
+The coderef currently takes a single parameter: an arrayref representing the
+columns of the row to be processed.
+
+ # Hide all rows where the second column contains the text 'OK'
+ $tbl->filter(sub { shift->[1] ne 'OK' });
+
+Note that this does not affect row selection: if the multiselect flag is enabled,
+it is possible to filter out rows that are selected. This behaviour is by design
+(the idea was to allow union select via different filter criteria), call the
+L</unselect_hidden_rows> method after filtering if you want to avoid this.
+
+Also note that this is a one-shot operation. If you add or change data, you'll
+need to reapply the filter operation manually.
+
+=head2 unselect_hidden_rows
+
+Helper method to mark any hidden rows as unselected.
+Call this after L</filter> if you want to avoid confusing
+users with invisible selected rows.
+
+=head1 TODO
+
+Current list of pending features:
+
+=over 4
+
+=item * Column and cell highlighting modes
+
+=item * Proper widget-in-cell support
+
+=item * Better header support (more than one row, embedded widgets)
+
+=back
+
+=head1 SEE ALSO
+
+Other tables and table-like things:
+
+=over 4
+
+=item * L<Tickit::Widget::Table> - older table implementation based on L<Tickit::Widget::HBox> and L<Tickit::Widget::VBox>
+widgets. Does not support scrolling and performance isn't as good, so it will eventually be merged with this one.
+
+=item * L<Text::ANSITable> - not part of L<Tickit> but has some impressive styling capabilities.
+
+=back
+
+And these are probably important background reading for formatting and data source support:
+
+=over 4
+
+=item * L<String::Tagged> - supported for applying custom formatting (specifically, pen attributes)
+
+=item * L<Adapter::Async> - API for dealing with abstract data sources
 
 =back
 
 =head1 AUTHOR
 
-Tom Molesworth <cpan@entitymodel.com>
+Tom Molesworth <cpan@perlsite.co.uk>
+
+=head1 INHERITED METHODS
+
+=over 4
+
+=item L<Tickit::Widget>
+
+L<get_style_pen|Tickit::Widget/get_style_pen>, L<get_style_text|Tickit::Widget/get_style_text>, L<get_style_values|Tickit::Widget/get_style_values>, L<key_focus_next_after|Tickit::Widget/key_focus_next_after>, L<key_focus_next_before|Tickit::Widget/key_focus_next_before>, L<on_pen_changed|Tickit::Widget/on_pen_changed>, L<parent|Tickit::Widget/parent>, L<pen|Tickit::Widget/pen>, L<redraw|Tickit::Widget/redraw>, L<requested_cols|Tickit::Widget/requested_cols>, L<requested_lines|Tickit::Widget/requested_lines>, L<requested_size|Tickit::Widget/requested_size>, L<resized|Tickit::Widget/resized>, L<set_parent|Tickit::Widget/set_parent>, L<set_pen|Tickit::Widget/set_pen>, L<set_requested_size|Tickit::Widget/set_requested_size>, L<set_style|Tickit::Widget/set_style>, L<set_style_tag|Tickit::Widget/set_style_tag>, L<set_window|Tickit::Widget/set_window>, L<style_classes|Tickit::Widget/style_classes>, L<take_focus|Tickit::Widget/take_focus>, L<window|Tickit::Widget/window>, L<window_lost|Tickit::Widget/window_lost>
+
+=back
+
+=head1 CONTRIBUTORS
+
+With thanks to the following for contribution:
+
+=over 4
+
+=item * Paul "LeoNerd" Evans for testing and suggestions on storage/abstraction handling
+
+=item * buu, for testing and patches
+
+=back
 
 =head1 LICENSE
 
-Copyright Tom Molesworth 2011-2013. Licensed under the same terms as Perl itself.
+Copyright Tom Molesworth 2012-2014. Licensed under the same terms as Perl itself.
