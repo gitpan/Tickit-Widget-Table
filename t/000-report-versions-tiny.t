@@ -53,6 +53,7 @@ eval { $v .= pmver('ExtUtils::MakeMaker','6.48') };
 eval { $v .= pmver('File::Spec','any version') };
 eval { $v .= pmver('IO::Handle','any version') };
 eval { $v .= pmver('IPC::Open3','any version') };
+eval { $v .= pmver('String::Tagged','0.09') };
 eval { $v .= pmver('Test::CheckDeps','0.010') };
 eval { $v .= pmver('Test::More','0.98') };
 eval { $v .= pmver('Tickit','0.46') };

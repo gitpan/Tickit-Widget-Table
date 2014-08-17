@@ -34,6 +34,7 @@
       "runtime" : {
          "requires" : {
             "Adapter::Async" : "0.005",
+            "String::Tagged" : "0.09",
             "Tickit" : "0.46",
             "Tickit::Widget" : "0",
             "curry" : "0",
@@ -58,6 +59,6 @@
       },
       "homepage" : "http://search.cpan.org/dist/Tickit-Widget-Table/"
    },
-   "version" : "0.203"
+   "version" : "0.204"
 }
 

@@ -2,9 +2,10 @@ package Tickit::Widget::Table;
 # ABSTRACT: a table widget for larger datasets
 use strict;
 use warnings;
+
 use parent qw(Tickit::Widget);
 
-our $VERSION = '0.203';
+our $VERSION = '0.204';
 
 =head1 NAME
 
@@ -12,7 +13,7 @@ Tickit::Widget::Table - table widget with support for scrolling/paging
 
 =head1 VERSION
 
-Version 0.203
+Version 0.204
 
 =head1 SYNOPSIS
 

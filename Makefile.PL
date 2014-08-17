@@ -21,6 +21,7 @@ my %WriteMakefileArgs = (
   "NAME" => "Tickit::Widget::Table",
   "PREREQ_PM" => {
     "Adapter::Async" => "0.005",
+    "String::Tagged" => "0.09",
     "Tickit" => "0.46",
     "Tickit::Widget" => 0,
     "curry" => 0,
@@ -33,7 +34,7 @@ my %WriteMakefileArgs = (
     "Test::CheckDeps" => "0.010",
     "Test::More" => "0.98"
   },
-  "VERSION" => "0.203",
+  "VERSION" => "0.204",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -45,6 +46,7 @@ my %FallbackPrereqs = (
   "File::Spec" => 0,
   "IO::Handle" => 0,
   "IPC::Open3" => 0,
+  "String::Tagged" => "0.09",
   "Test::CheckDeps" => "0.010",
   "Test::More" => "0.98",
   "Tickit" => "0.46",

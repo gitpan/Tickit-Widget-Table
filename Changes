@@ -1,5 +1,11 @@
 Revision history for Tickit-Widget-Table
 
+0.204     2014-08-17 08:56:51+01:00 Europe/London
+	No new features.
+
+	Dependency fixes:
+	* String::Tagged
+
 0.203     2014-08-16 19:47:09+01:00 Europe/London
 	No new features.
 
