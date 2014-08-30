@@ -5,7 +5,7 @@ use warnings;
 
 use parent qw(Tickit::Widget);
 
-our $VERSION = '0.204';
+our $VERSION = '0.205';
 
 =head1 NAME
 
@@ -13,7 +13,7 @@ Tickit::Widget::Table - table widget with support for scrolling/paging
 
 =head1 VERSION
 
-Version 0.204
+Version 0.205
 
 =head1 SYNOPSIS
 
@@ -246,6 +246,7 @@ sub new {
 		on_activate
 		multi_select
 		adapter
+		failure_transformations
 		item_transformations
 		cell_transformations
 		columns
@@ -267,6 +268,7 @@ sub new {
 	# Some defaults
 	$attr{item_transformations} ||= [ ];
 	$attr{cell_transformations} ||= { };
+	$attr{failure_transformations} = [ $attr{failure_transformations} ] if $attr{failure_transformations} && ref $attr{failure_transformations} eq 'CODE';
 	$attr{highlight_row} //= 0;
 
 	# Apply our attributes now
@@ -745,12 +747,18 @@ sub render_body {
 		if($f->is_done) {
 			$self->render_row($rb, $rect, $idx, $f->get);
 		} elsif($f->is_ready) {
-			$self->render_failed_row($rb, $rect, $idx, $f->is_cancelled ? 'cancelled' : $f->failure);
+			$self->render_failed_row($rb, $rect, $idx, $f->is_cancelled ? 'cancelled' : $self->failure_transform($f->failure));
 		} else {
 			$self->render_pending_row($rb, $rect, $idx);
 			$f->on_done($self->curry::expose_row($idx));
 		}
 	}
+}
+
+sub failure_transform {
+	my ($self, $msg) = @_;
+	return $msg unless my $ft = $self->{failure_transformations};
+	$msg = $_->($msg) for @$ft;
 }
 
 =head2 render_row
@@ -890,6 +898,14 @@ sub fold_future {
 			$item = shift
 		})
 	} foreach => \@steps
+}
+
+sub update_row_cache {
+	my ($self, $row) = @_;
+	undef $self->{row_cache}[$self->row_cache_idx($row)];
+	$self->row_cache($row)->on_ready(sub {
+		$self->expose_row($row);
+	});
 }
 
 =head2 row_cache
@@ -1188,6 +1204,7 @@ sub on_adapter_change {
 		$self->{adapter_subscriptions} = [
 			splice => $self->curry::weak::on_splice_event,
 			clear  => $self->curry::weak::on_clear_event,
+			modify => $self->curry::weak::on_modify_event,
 		]
 	});
 
@@ -1195,6 +1212,19 @@ sub on_adapter_change {
 		$self->{item_count} = shift
 	});
 	$self
+}
+
+sub idx_in_row_cache_range {
+	my ($self, $idx) = @_;
+	return 0 unless $self->idx_from_row_cache(0) <= $idx;
+	return 0 unless $self->idx_from_row_cache(3 * $self->body_lines - 1) >= $idx;
+	return 1;
+}
+
+sub on_modify_event {
+	my ($self, $ev, $idx, $data) = @_;
+	return unless $self->window;
+	$self->update_row_cache($idx) if $self->idx_in_row_cache_range($idx);
 }
 
 =head2 on_splice_event

@@ -1,5 +1,10 @@
 Revision history for Tickit-Widget-Table
 
+0.205     2014-08-31 00:33:35+01:00 Europe/London
+	Features:
+	* Modify event support
+	* failure transformations
+
 0.204     2014-08-17 08:56:51+01:00 Europe/London
 	No new features.
 
