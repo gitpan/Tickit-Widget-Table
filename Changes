@@ -1,5 +1,12 @@
 Revision history for Tickit-Widget-Table
 
+0.207     2014-08-31 14:54:56+01:00 Europe/London
+	No new features.
+
+	Bugs fixed:
+	* Cache was not invalidated correctly on splice
+	* Also invalidate cache and expose on window reshape
+
 0.206     2014-08-31 02:47:40+01:00 Europe/London
 	Features:
 	* Pass view transformations in constructor

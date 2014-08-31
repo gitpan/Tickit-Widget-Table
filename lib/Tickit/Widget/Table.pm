@@ -5,7 +5,7 @@ use warnings;
 
 use parent qw(Tickit::Widget);
 
-our $VERSION = '0.206';
+our $VERSION = '0.207';
 
 =head1 NAME
 
@@ -13,7 +13,7 @@ Tickit::Widget::Table - table widget with support for scrolling/paging
 
 =head1 VERSION
 
-Version 0.206
+Version 0.207
 
 =head1 SYNOPSIS
 
@@ -975,7 +975,12 @@ sub reshape {
 	my $self = shift;
 	delete @{$self}{qw(body_rect header_rect scrollbar_rect)};
 	$self->SUPER::reshape(@_);
+	# Clear cache on resize... not great but avoids rendering glitches for now.
+	$self->{row_cache} = [
+		(undef) x ($self->body_lines * 3)
+	];
 	$self->distribute_columns;
+	$self->window->expose;
 }
 
 =head2 distribute_columns
@@ -1245,6 +1250,16 @@ sub on_splice_event {
 		# Row cache update
 		my $rc_start = $self->idx_from_row_cache(0);
 		my $rc_end = $self->idx_from_row_cache(3 * $self->body_lines - 1);
+
+		# Just nuke the cache if this overlaps. It's
+		# not very efficient, but should prevent
+		# rendering glitches.
+		if($idx + $len >= $rc_start && $idx <= $rc_end) {
+			undef($_) for @{$self->{row_cache}};
+		}
+		if($idx + @$data >= $rc_start && $idx <= $rc_end) {
+			undef($_) for @{$self->{row_cache}};
+		}
 
 		$self->scroll_highlight($delta) if $delta;
 		$win->expose;

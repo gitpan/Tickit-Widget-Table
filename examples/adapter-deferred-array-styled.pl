@@ -28,9 +28,10 @@ sub get {
 		} foreach => [ @items ];
 	}
 	$f ||= Future->wrap;
-	$f->then(sub {
+	my $task = $f->then(sub {
 		defer_by { \@items } 0.5 + rand;
-	})
+	});
+	$task->on_ready(sub { undef $task });
 }
 
 }
