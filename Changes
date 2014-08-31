@@ -1,5 +1,9 @@
 Revision history for Tickit-Widget-Table
 
+0.206     2014-08-31 02:47:40+01:00 Europe/London
+	Features:
+	* Pass view transformations in constructor
+
 0.205     2014-08-31 00:33:35+01:00 Europe/London
 	Features:
 	* Modify event support

@@ -5,7 +5,7 @@ use warnings;
 
 use parent qw(Tickit::Widget);
 
-our $VERSION = '0.205';
+our $VERSION = '0.206';
 
 =head1 NAME
 
@@ -13,7 +13,7 @@ Tickit::Widget::Table - table widget with support for scrolling/paging
 
 =head1 VERSION
 
-Version 0.205
+Version 0.206
 
 =head1 SYNOPSIS
 
@@ -249,6 +249,7 @@ sub new {
 		failure_transformations
 		item_transformations
 		cell_transformations
+		view_transformations
 		columns
 		highlight_row
 		data
@@ -269,6 +270,7 @@ sub new {
 	$attr{item_transformations} ||= [ ];
 	$attr{cell_transformations} ||= { };
 	$attr{failure_transformations} = [ $attr{failure_transformations} ] if $attr{failure_transformations} && ref $attr{failure_transformations} eq 'CODE';
+	$attr{view_transformations} = [ $attr{view_transformations} ] if $attr{view_transformations} && ref $attr{view_transformations} eq 'CODE';
 	$attr{highlight_row} //= 0;
 
 	# Apply our attributes now
@@ -781,7 +783,7 @@ sub render_row {
 	for my $col (0..$#$data) {
 		my $v = $self->apply_view_transformations($row, $col, $data->[$col]);
 		my $def = $self->{columns}[$col];
-		$rb->goto($line, $def->{start});
+		$rb->goto($line, $def->{start} // 0);
 		my ($pre, undef, $post) = align textwidth($v), $def->{value}, $def->{align};
 		$rb->erase($pre, $base_pen) if $pre;
 		if(blessed($v) && $v->isa('String::Tagged')) {
